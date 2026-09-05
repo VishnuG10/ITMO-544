@@ -4,7 +4,7 @@ Name: Vishnu Upadhya
 ---
 1. AWS CLI Version
 Screenshot of `aws --version` output:
-![AWS CLI Version](/images/image1.png)
+![AWS CLI Version](images/image1.png)
 ---
 2. AWS Caller Identity
 Screenshot of `aws sts get-caller-identity` showing your IAM username in the ARN (not root):
