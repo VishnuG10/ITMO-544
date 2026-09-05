@@ -11,7 +11,7 @@ Screenshot of `aws sts get-caller-identity` showing your IAM username in the ARN
 ![AWS Caller Identity](images/image6.png)
 ---
 3. Screenshot of cat /etc/os-release run inside the Ubuntu container:
-Screenshot of `git config --global --list` showing your name and college email:
+Screenshot of `git config --global --list` showing your name and college email:  
 ![Git Config](images/image7.png)
 ---
 4. Screenshot of docker ps -a before and after removing my-ubuntu:
