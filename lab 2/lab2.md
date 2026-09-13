@@ -1,5 +1,5 @@
-Lab 02: AWS CLI Syntax, Launching EC2 Instances, and Environment-Based Scripting
-Name: Vishnu Upadhya
+# Lab 02: AWS CLI Syntax, Launching EC2 Instances, and Environment-Based Scripting  
+# Name: Vishnu Upadhya
 
 ---
 1. Screenshot of a decomposed aws ec2 describe-instances command with each part labeled (service/operation/parameters):
