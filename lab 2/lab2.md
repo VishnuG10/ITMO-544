@@ -23,4 +23,4 @@ Name: Vishnu Upadhya
 [Github repo](https://github.com/VishnuG10/ITMO-544)
 ---
 8. One paragraph explaining why environment files are excluded from Git, even in a “private” repository:  
-The environment files may contain security group Ids or Ami Id or even actual secrets. And storing the .env file in github is a bad practice as the repository visibility can be accidentaly changed. This could lead to credentials being exposed to the person viewing the repo, including automated bots.  
+The environment files may contain security group Ids or Ami Id or even actual secrets. And storing the .env file in github is a bad practice as the repository visibility can be accidentaly changed. This could lead to credentials being exposed to the person viewing the repo, including automated bots. If the Ami Id and tokens are exposed, the aws account will be at risk and it may cause unauthorized resource access and the account owner will have to bear the cost.
