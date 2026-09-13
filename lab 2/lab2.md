@@ -19,7 +19,7 @@
 5. Screenshot of delete_instances.sh output confirming termination:
 ![delete_instance.sh](images/image6.png)
 ---
-7. Link to your GitHub repo showing create_instances.sh , delete_instances.sh , .env. xample , and .gitignore (but not .env ):  
+7. Link to your GitHub repo showing create_instances.sh , delete_instances.sh , .env. xample , and .gitignore (but not .env ):   
 [Github repo](https://github.com/VishnuG10/ITMO-544)
 ---
 8. One paragraph explaining why environment files are excluded from Git, even in a “private” repository:  
