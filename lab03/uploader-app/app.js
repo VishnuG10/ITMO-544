@@ -31,12 +31,10 @@ app.post('/upload', (req, res) => {
 upload.single('txtfile')(req, res, async (err) => {
 if (err) {
 if (err.code === 'LIMIT_FILE_SIZE') {
-return res.status(413).send('<p>Upload failed: file exceeds the 1MB limit.</p><a href="/">Try
-again</a>');
+return res.status(413).send('<p>Upload failed: file exceeds the 1MB limit.</p><a href="/">Try again</a>');
 }
 if (err.message === 'ONLY_TXT_ALLOWED') {
-return res.status(415).send('<p>Upload failed: only .txt files are allowed.</p><a href="/">Try
-again</a>');
+return res.status(415).send('<p>Upload failed: only .txt files are allowed.</p><a href="/">Try again</a>');
 }
 return res.status(400).send('<p>Upload failed: ' + err.message + '</p><a href="/">Try again</a>');
 }
