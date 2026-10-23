@@ -17,7 +17,6 @@
 4.  Screenshot of python create_stack.py completing, with both URLs.
 
 ![image4](./images/image4.png)  
-**Doesn’t allow upload of any other format. So I couldn’t upload any other file.**
 
 5.  Screenshot of pytest -m integration -v with all 14 tests passing.
 
