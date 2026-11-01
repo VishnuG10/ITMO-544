@@ -8,11 +8,11 @@
 
 2. Output of the NWS calls from Part A and one sentence on why two upstream calls are needed
 
-![image1](./images/image1.png)
+![image2](./images/image2.png)
 
-![image1](./images/image1.png)
+![image3](./images/image3.png)
 
-![image1](./images/image1.png)
+![image4](./images/image4.png)
 
 Two upstream calls are needed because the National Weather Service accepts coordinates and not zip codes, so the zip code must first be converted to latitude and longitude by the zip lookup service, and the coordinates are then used for the NWS points call and the NWS forecast call.
 
@@ -20,11 +20,11 @@ Two upstream calls are needed because the National Weather Service accepts coord
 
 Output of `python3 create_database.py`:
 
-![image1](./images/image1.png)
+![image5](./images/image5.png)
 
 Step 4 output:
 
-![image1](./images/image1.png)
+![image6](./images/image6.png)
 
 The table shows BackupRetentionDays 0, Public False, MultiAZ False, Encrypted True and class db.t4g.micro. Both describe-db-snapshots and describe-db-instance-automated-backups returned [], and the connection test printed no connection (expected). Together they show that no backup or snapshot storage is used, and that the database cannot be reached from outside the VPC.
 
@@ -32,59 +32,59 @@ The table shows BackupRetentionDays 0, Public False, MultiAZ False, Encrypted Tr
 
 Output of `python3 create_weather_stack.py`, sections 1 to 7 and the two URLs:
 
-![image1](./images/image1.png)
+![image7](./images/image7.png)
 
 The weather service answering through the load balancer:
 
-![image1](./images/image1.png)
+![image8](./images/image8.png)
 
 4. Screenshot of the advisor page showing a suggestion for a zip code, and the JSON from /advice?zip=... for the same zip
 
-![image1](./images/image1.png)
+![image9](./images/image9.png)
 
-![image1](./images/image1.png)
+![image10](./images/image10.png)
 
 5. Output of app_smoke_test.py with all nine checks passing
 
-![image1](./images/image1.png)
+![image11](./images/image11.png)
 
 6. Step 1: a few lines of the weather journal, with a sentence explaining one weather_success line
 
-![image1](./images/image1.png)
+![image12](./images/image12.png)
 
 Each weather_success line records one finished request as JSON: the zip, whether the answer came from the database cache (hit) or from the upstream APIs (miss), and the time in milliseconds. The line {"event":"weather_success","zip":"60608","cache":"miss","ms":162} means the zip was not cached, so the service called the zip lookup, NWS points and NWS forecast, saved the result and answered in 162 ms. The miss lines took 162 to 278 ms, while the hit lines (for example "zip":"90210","cache":"hit","ms":2) took 2 ms.
 
 7. Step 2: the /history output and the psql query output
 
-![image1](./images/image1.png)
+![image13](./images/image13.png)
 
-![image1](./images/image1.png)
+![image14](./images/image14.png)
 
-![image1](./images/image1.png)
+![image15](./images/image15.png)
 
 The /history output lists the ten most recent saved lookups, and the psql query confirms the table holds 11 rows (saved_lookups = 11). There are fewer rows than requests because a cache hit is answered from the database and nothing new is written. For example, the 16:04:00 requests for 90210 and 60616 were hits, so no new rows were added for them.
 
 8. Step 3: the miss and hit timings, and the two sentences
 
-![image1](./images/image1.png)
+![image16](./images/image16.png)
 
 The first request for zip 98101 took 0.35 s (a miss: two upstream calls plus a database write), and the repeat took 0.06 s (a hit: no upstream calls). A short cache matters more for a service that calls a rate-limited upstream, because each hit makes no upstream call and so uses none of the allowance, and it keeps the service answering when the upstream is slow. CACHE_SECONDS should not be very long for weather, because forecasts change and a long cache would serve outdated conditions.
 
 9. Step 5: the IAM simulator results for both roles and both secrets, and the sentence about the advisor tier
 
-![image1](./images/image1.png)
+![image17](./images/image17.png)
 
 The weather role is allowed for the database password and implicitDeny for the Gemini key, and the advisor role is the reverse. An attacker who takes over the advisor tier gets the Gemini key, which allows quota and cost abuse, but not the database password, so there is no direct database login.
 
 10. Step 6: the direct and through-the-ALB results, and the sentence about security group sources
 
-![image1](./images/image1.png)
+![image18](./images/image18.png)
 
 The direct request to the instance on port 3000 got no answer (direct: 000), and the request through the ALB returned 200. A rule that names another security group as its source lets in only resources that carry that group and follows the group's members as instances come and go, while a CIDR range admits any address in the range.
 
 11. Step 7: the output while the database was cut off, the db_error log line, and the sentence about the 30 second pause
 
-![image1](./images/image1.png)
+![image19](./images/image19.png)
 
 With the database rule revoked, the forecast still returned (Chicago cache = unavailable), /history returned 503, and the journal recorded db_error ... Connection terminated due to connection timeout, so a database failure did not become a weather outage. After the rule was restored, the next request returned cache = miss, meaning the database worked again and the lookup was fetched and saved (it had not been saved while the database was cut off). The 30 second pause exists because, without it, every request would wait out the 3 second connection timeout while the database is down, making every weather answer slow.
 
@@ -92,21 +92,21 @@ With the database rule revoked, the forecast still returned (Chicago cache = una
 
 The key overwritten and the three fallback answers:
 
-![image1](./images/image1.png)
+![image20](./images/image20.png)
 
 The gemini_error journal lines:
 
-![image1](./images/image1.png)
+![image21](./images/image21.png)
 
 The key restored and the smoke test passing again:
 
-![image1](./images/image1.png)
+![image22](./images/image22.png)
 
 After the key was overwritten and the key cache expired, all three answers came back with source fallback, and no request returned an error. The journal lines at 17:20:29 show "status":400, which is Google rejecting the invalid key. The weakness is that users never see an error, so a broken key or an exhausted quota can go unnoticed when the only evidence is a log line that nobody reads.
 
 13. Step 9: the recovery time measured, what the advisor returned during the outage, and the sentence about where state should live
 
-![image1](./images/image1.png)
+![image23](./images/image23.png)
 
 The weather service recovered after 89 seconds. During the outage the advisor answered 502 weather_service_unavailable quickly (mostly within 0.2 seconds, never more than about 10 seconds) instead of hanging, and its home page stayed 200. State should live in a managed service such as the database and not on the instance: the replacement instance answered cache = hit for zip 60616 using data saved by the old instance, which was no longer running.
 
