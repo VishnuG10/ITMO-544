@@ -1,0 +1,14 @@
+{
+  "country": "United States",
+  "country abbreviation": "US",
+  "post code": "99501",
+  "places": [
+    {
+      "place name": "Anchorage",
+      "longitude": "-149.8761",
+      "latitude": "61.2116",
+      "state": "Alaska",
+      "state abbreviation": "AK"
+    }
+  ]
+}
