@@ -40,9 +40,7 @@ The first plan said Plan: 1 to add, 0 to change, 0 to destroy, and listed the ta
 
 ![app_smoke_test.py, 9 of 9 checks passed](images/image7.png)
 
-![Advisor page for zip 60616](images/image8.png)
-
-All nine checks passed: the weather tier returned a forecast, the repeat call was a cache hit answered from DynamoDB, /history listed the saved lookup, a bad zip gave 400, an unknown zip gave 404, the advisor returned advice from Gemini (source=gemini, model gemini-3.1-flash-lite, in 2.3 seconds), a bad zip on the advisor gave 400, and the advisor home page loaded. The advisor page for zip 60616 shows Chicago, IL, the forecast for this afternoon, the advice, and Suggestion source: gemini. The page was opened through the load balancer on port 8081, and the addresses for the smoke test came from terraform output, so no file had to be kept in sync.
+![Advisor page for zip 60616](images/image8.png)  
 
 5. Steps 1 to 3: the effort table with line counts, the terraform graph output with a sentence, and the No changes plan with a sentence comparing it to running the script twice
 
