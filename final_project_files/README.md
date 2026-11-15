@@ -2,55 +2,26 @@
 
 Every command is run in the terminal inside the container, with the virtual environment active. The folder names and file names are the same as in lab06. The write-up to submit is `Final Project.md`, and each 📸 below says which section of it the screenshot goes into.
 
-## Step 1. Make the final_project folder
+## Step 1. Put the folder in place
+
+Unzip `final_project.zip` and put the `final_project` folder in `/ITMO-544`, next to `lab06`. It is the complete project: the lab06 files that did not change, the files that changed, and the new ones. Lab06 itself is never edited.
 
 ```
-cd /ITMO-544
-cp -r lab06 final_project
-cd final_project
+cd /ITMO-544/final_project
+ls
 ```
 
-Lab06 is never edited. Everything below happens in `final_project`.
+## Step 2. Copy the settings from lab06
 
-## Step 2. Remove what belongs only to earlier labs
-
-The brief allows no bash and no `.sh` files, and `previous/` holds the lab04 bash scripts. The other files are the lab05 uploader and viewer code and tests, the lab06 write-up, and the output files of the old stack. The key file is removed from this copy because a private key must not be in a submission (the original stays in `lab06`).
+The `.env` file holds the settings of the account, so it is not in the zip. Copy it from lab06:
 
 ```
-rm -rf previous images "Lab 6.md" *.pem
-rm -f stack/runner.py stack/storage.py stack/outputs.py testing/experiments.py
-rm -f tests/conftest.py tests/helpers.py tests/unit/test_config.py tests/unit/test_policies.py
-rm -f tests/unit/test_stack_with_moto.py tests/unit/test_user_data.py
-rm -f stack_outputs.json stack_outputs.env db_outputs.env
+cp ../lab06/.env .
 ```
 
-## Step 3. Add the final project files
+## Step 3. Add the new settings
 
-```
-python3 -m zipfile -e ../final_project_files.zip .
-```
-
-This replaces the lab06 files that changed and adds the new ones.
-
-| File | New or changed | What changed |
-|---|---|---|
-| `weather-app/app.js`, `package.json` | changed | A date, Morning and Night, seven facts, a second source, the categories |
-| `advisor-app/app.js`, `package.json` | changed | Four fields, the report page, three kinds of advice with checking, caps and limits, email |
-| `weather-app/app.test.js`, `advisor-app/app.test.js` | new | The application logic tests (Node.js) |
-| `stack/wconfig.py`, `wclients.py`, `wpolicies.py`, `wstack.py` | changed | New settings, the SNS client, the advisor policy, the topic, the Python boot script |
-| `stack/compute.py`, `stack/policies.py` | changed | The lab05 bash boot script and the lab05 S3 policies were removed |
-| `stack/usage.py`, `budget.py` | new | The usage log and the cost report |
-| `create_weather_stack.py`, `delete_weather_stack.py`, `create_database.py`, `delete_database.py` | changed | Each writes a line to the usage log |
-| `tests/unit/test_weather_stack.py`, `tests/wsupport.py`, `tests/whelpers.py`, `tests/integration/test_weather_*.py` | changed | Tests for the new behavior |
-| `tests/unit/test_weather_budget.py` | new | Tests of the cost report |
-| `testing/app_smoke_test.py` | changed | Checks for the new report |
-| `testing/investigate_sources.py` | new | Records real API responses and writes the source map evidence |
-| `Final Project.md`, `images/architecture.png` | new | The write-up |
-| `.env.example`, `.gitignore`, `requirements.txt` | changed | New keys, ignored files, moto services |
-
-## Step 4. Settings
-
-Add the new settings to `.env` and set the cache time to 30 minutes:
+Add the new settings to `.env` and set the cache time to 30 minutes. Paste the whole block at the prompt:
 
 ```
 cat >> .env << 'EOF'
@@ -66,7 +37,7 @@ sed -i 's/^CACHE_SECONDS=.*/CACHE_SECONDS=1800/' .env
 grep -c . .env
 ```
 
-## Step 5. One new permission for lab-user
+## Step 4. One new permission for lab-user
 
 The create script makes an SNS topic. In the IAM console, open lab-user, choose Add permissions, Create inline policy, JSON, paste this, and name it `final-sns`:
 
@@ -85,7 +56,7 @@ The create script makes an SNS topic. In the IAM console, open lab-user, choose 
 
 The inline policies `lab06-rds` and `lab06-ssm` are still needed. If they were deleted after lab06, add them again as in lab06.
 
-## Step 6. Install
+## Step 5. Install
 
 ```
 node --version
@@ -96,7 +67,7 @@ pip install -r requirements.txt
 
 Node must be version 18 or newer, because the application tests use the test runner that is built into Node.
 
-## Step 7. Tests that need no AWS account and no network
+## Step 6. Tests that need no AWS account and no network
 
 ```
 python3 -m pytest -v
@@ -108,7 +79,7 @@ Expected: 31 passed in pytest, 31 passed and 4 skipped in `weather-app`, 39 pass
 
 > 📸 **Screenshot 1** (section 5.1): the last lines of each of the three commands.
 
-## Step 8. Record the real API responses
+## Step 7. Record the real API responses
 
 ```
 python3 testing/investigate_sources.py
@@ -122,7 +93,7 @@ The four `contract:` tests now run. The script also writes `source_map_evidence.
 
 Then, in `Final Project.md`: paste `source_map_evidence.md` into section 2.3, and complete the three places marked *(...)* in section 2.4 from what the script printed.
 
-## Step 9. Deploy
+## Step 8. Deploy
 
 ```
 python3 create_database.py
@@ -146,7 +117,7 @@ Open the advisor address in a browser, enter a zip code, tomorrow's date, a gend
 
 > 📸 **Screenshot 6** (section 5.3): the advisor page with the report.
 
-## Step 10. Integration tests
+## Step 9. Integration tests
 
 ```
 python3 -m pytest -m integration -v -s
@@ -154,7 +125,7 @@ python3 -m pytest -m integration -v -s
 
 > 📸 **Screenshot 7** (section 5.4): the pytest summary, with the lines `new report took ... s` and `cached report took ... s`. Write the two times into the table of section 5.4.
 
-## Step 11. Email with two inboxes
+## Step 10. Email with two inboxes
 
 Follow the five steps of section 5.6 with two email addresses.
 
@@ -162,7 +133,7 @@ Follow the five steps of section 5.6 with two email addresses.
 > 📸 **Screenshot 9** (section 5.6): the page saying the report was accepted.
 > 📸 **Screenshot 10** (section 5.6): inbox A and inbox B, each with only its own report.
 
-## Step 12. Chaos tests
+## Step 11. Chaos tests
 
 ```
 python3 -m pytest -m chaos -v -s
@@ -172,7 +143,7 @@ This takes about 5 minutes. It terminates the weather instance and waits for the
 
 > 📸 **Screenshot 11** (section 5.5): the output, with the line about the Gemini cap and the line `weather tier recovered after ... s`. Write both results into the table of section 5.5.
 
-## Step 13. Delete everything and report the cost
+## Step 12. Delete everything and report the cost
 
 Delete the stack before the database, so the usage counts can be read.
 
@@ -186,8 +157,28 @@ python3 budget.py
 
 Delete the stack every time a work session ends. `budget.py` adds up all sessions from `usage_log.jsonl`.
 
-## Step 14. After the project
+## Step 13. After the project
 
 1. Delete the inline policies `final-sns`, `lab06-rds` and `lab06-ssm` from lab-user.
 2. Delete the Gemini key in Google AI Studio.
 3. Look at the Billing page the next day.
+
+## What changed from lab06
+
+The folder names and file names are the same as in lab06. The lab04 bash scripts in `previous/`, the lab05 uploader and viewer code and tests, the lab06 write-up and the key file are not in this folder.
+
+| File | New or changed | What changed |
+|---|---|---|
+| `weather-app/app.js`, `package.json` | changed | A date, Morning and Night, seven facts, a second source, the categories |
+| `advisor-app/app.js`, `package.json` | changed | Four fields, the report page, three kinds of advice with checking, caps and limits, email |
+| `weather-app/app.test.js`, `advisor-app/app.test.js` | new | The application logic tests (Node.js) |
+| `stack/wconfig.py`, `wclients.py`, `wpolicies.py`, `wstack.py` | changed | New settings, the SNS client, the advisor policy, the topic, the Python boot script |
+| `stack/compute.py`, `stack/policies.py` | changed | The lab05 bash boot script and the lab05 S3 policies were removed |
+| `stack/usage.py`, `budget.py` | new | The usage log and the cost report |
+| `create_weather_stack.py`, `delete_weather_stack.py`, `create_database.py`, `delete_database.py` | changed | Each writes a line to the usage log |
+| `tests/unit/test_weather_stack.py`, `tests/wsupport.py`, `tests/whelpers.py`, `tests/integration/test_weather_*.py` | changed | Tests for the new behavior |
+| `tests/unit/test_weather_budget.py` | new | Tests of the cost report |
+| `testing/app_smoke_test.py` | changed | Checks for the new report |
+| `testing/investigate_sources.py` | new | Records real API responses and writes the source map evidence |
+| `Final Project.md`, `images/architecture.png` | new | The write-up |
+| `.env.example`, `.gitignore`, `requirements.txt` | changed | New keys, ignored files, moto services |
