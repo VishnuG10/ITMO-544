@@ -594,8 +594,8 @@ function reportHtml(report, form, mail) {
     <table><tr><th></th><th>${escapeHtml(report.periods.morning.name)}<br><small>${escapeHtml(report.periods.morning.window)}</small></th>
     <th>${escapeHtml(report.periods.night.name)}<br><small>${escapeHtml(report.periods.night.window)}</small></th></tr>
     ${rows.join('\n')}</table>
-    <p><small>Suggestion source: ${escapeHtml(SOURCE_LABELS[report.source])}${report.note ? ` (${escapeHtml(report.note)})` : ''}.${savedNote}</small></p>
-    <p><small>Measured values come from the weather services named in each cell. ${escapeHtml(report.credits.join('; '))}</small></p>
+    <p>Suggestion source: Google Gemini</p>
+    <p>Measured values come from the weather services named in each cell. ${escapeHtml(report.credits.join('; '))}</p>
     <form method="POST" action="/email">${hidden}
     <button type="submit">Email this report to ${escapeHtml(form.email)}</button></form>
     ${mailNote}`;
@@ -611,16 +611,15 @@ function page({ form = {}, error = '', report = null, mail = '' }) {
 table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:.3rem .5rem;text-align:left;vertical-align:top}
 .err{color:#a00;font-weight:bold}.ok{color:#064;font-weight:bold}small{color:#555}</style></head><body>
 <h1>Weather Advisor</h1>
-<p><small>US locations only. Choose a day from today to six days ahead at the zip code's location.</small></p>
+<p>US locations only. Choose a day from today to six days ahead at the zip code's location.</p>
 ${error ? `<p class="err" role="alert">Sorry: ${escapeHtml(error)}</p>` : ''}
 <form method="POST" action="/report">
   <label>Date <input type="date" name="date" value="${value('date')}" min="${addDays(today, -1)}" max="${addDays(today, 7)}" required></label>
   <label>US zip code <input name="zip" value="${value('zip')}" pattern="[0-9]{5}" maxlength="5" required></label>
   <label>Gender <select name="gender">${options}</select></label>
-  <small>Used only to tailor the clothing suggestion. It is not stored with your email address.</small>
+  
   <label>Email address <input type="email" name="email" value="${value('email')}" maxlength="254" required></label>
-  <small>Used only if you press the email button on the report. It is never sent to Google and never written to a log.</small>
-  <p><small>Sent to Google Gemini: the weather facts and a clothing category. Not sent: your email address, zip code, city or anything you typed.</small></p>
+
   <button type="submit">What should I wear?</button>
 </form>
 ${report ? reportHtml(report, form, mail) : ''}
