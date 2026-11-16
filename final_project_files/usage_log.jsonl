@@ -1,0 +1,6 @@
+{"event": "deleted", "time": 1794801656.7079234, "usage": null}
+{"event": "db_deleted", "time": 1794801901.5507731}
+{"event": "db_created", "time": 1794801996.7954838}
+{"event": "created", "time": 1794802441.0518987}
+{"event": "deleted", "time": 1794804369.7363896, "usage": {"date": "2026-11-16", "gemini_calls": 15, "gemini_failures": 1, "emails_sent": 2, "gemini_daily_cap": 200}}
+{"event": "db_deleted", "time": 1794804463.0601902}
