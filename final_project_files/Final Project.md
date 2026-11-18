@@ -57,22 +57,21 @@ The two tiers were kept. They scale separately, they have separate IAM roles, an
 
 The report that is mailed is built again on the server from the checked fields. The browser does not supply the text. The email address is used for this one purpose. It is never sent to Gemini, never written to a log and never stored in the database.
 
-### 1.5 Data classification (Section 4.4)
+### 1.5 Data classification
 
-| Kind | Items | Source | Why |
+| Kind | Examples | Source | Why |
 |---|---|---|---|
 | Measured or forecast values | Temperature, wind speed and gusts, visibility, UV, humidity, chance and amount of rain and snow | Weather APIs only: NWS first, Open-Meteo for UV and for gaps | A language model can invent a plausible number |
 | Derived categories | Rain: Heavy, Mild or No. Snow: Heavy, Mild or No | Code in `weather-app/app.js` (`rainCategory`, `snowCategory`), with the thresholds of section 3.3 | The same data always gives the same category, and it can be tested |
 | Advice | Road conditions, dressing, accessories | Gemini, or the rule-based fallback, always labeled | A model turns numbers into practical suggestions |
 | Personal data | Email address | Typed by the visitor. Held only by SNS as a subscription. Not in the database, not in a log | Needed only to deliver mail |
 | Personal data | Gender choice | Chosen from a fixed list and turned into a clothing category. Not stored with the email address, not logged | Used only to tailor the clothing suggestion |
-| Visitor identity | Hash of the network address | Only inside the rate limit counters, which expire after two minutes or two hours | Abuse control |
 
 ### 1.6 What is cached and for how long
 
 | Data | Table and key | Fresh for | Removed after | Why |
 |---|---|---|---|---|
-| Facts | `facts`, zip code and day | 30 minutes (`CACHE_SECONDS`) | 6 hours (`STALE_SECONDS`) | NWS updates its gridded forecast about once an hour, so 30 minutes is recent enough and saves most outside calls. An older copy is used only when the weather sources fail, and its age is shown |
+| Facts | `facts`, zip code and day | 30 minutes (`CACHE_SECONDS`) | 6 hours | NWS updates its gridded forecast about once an hour, so 30 minutes is recent enough and saves most outside calls. An older copy is used only when the weather sources fail, and its age is shown |
 | Saved report | `reports`, zip code, day and clothing category | 1 hour (`REPORT_SECONDS`) | 1 hour | The same question is not answered twice, which saves Gemini calls. Only reports with advice from Gemini are saved |
 | Counters | `counters`, name and time window | the window | two windows | Rate limits, caps and the usage counts |
 
@@ -80,16 +79,14 @@ The database has backups turned off, as in lab06.
 
 ### 1.7 Per-tier IAM permissions (Section 7.2)
 
-The policy documents are built by `stack/wpolicies.py`. There are no wildcard actions and no wildcard resources, and a unit test fails if a `*` appears.
-
-| Role | Action | Resource | Line of code that needs it |
-|---|---|---|---|
-| Weather tier | `ssm:GetParameter` | the database password parameter | `weather-app/app.js` line 384, in `readDbPassword` |
-| Advisor tier | `ssm:GetParameter` | the Gemini key parameter | `advisor-app/app.js` line 128, in `getApiKey` |
-| Advisor tier | `ssm:GetParameter` | the database password parameter | `advisor-app/app.js` line 323, in `readDbPassword` |
-| Advisor tier | `sns:ListSubscriptionsByTopic` | the one topic ARN | `advisor-app/app.js` line 429, in `findSubscription` |
-| Advisor tier | `sns:Subscribe` | the one topic ARN | `advisor-app/app.js` line 438, in `subscribe` |
-| Advisor tier | `sns:Publish` | the one topic ARN | `advisor-app/app.js` line 443, in `publish` |
+| Role | Action | Resource |
+|---|---|---|
+| Weather tier | `ssm:GetParameter` | the database password parameter |
+| Advisor tier | `ssm:GetParameter` | the Gemini key parameter |
+| Advisor tier | `ssm:GetParameter` | the database password parameter |
+| Advisor tier | `sns:ListSubscriptionsByTopic` | the one topic ARN |
+| Advisor tier | `sns:Subscribe` | the one topic ARN |
+| Advisor tier | `sns:Publish` | the one topic ARN |
 
 The weather role cannot read the Gemini key and cannot use SNS. The advisor role cannot delete the topic and cannot change a parameter. The integration tests check these with the IAM policy simulator.
 
@@ -97,14 +94,12 @@ The weather role cannot read the Gemini key and cannot use SNS. The advisor role
 
 Amazon SNS was chosen (decision 10). The six questions of the brief are answered here.
 
-1. **Consent.** SNS sends a confirmation message to the address, and the subscription stays pending until the link is chosen. While it is pending the page says "Waiting for confirmation" and explains what to do. Pressing the button again asks SNS to send the confirmation again.
-2. **Only to the person who asked.** Every address has its own subscription with the filter policy `{"recipient": ["<hash of the address>"]}`. A report is published with the message attribute `recipient` set to the hash of the address that asked, so only the matching subscription receives it. A hash is used so that the address is not placed in a message attribute.
-3. **Content.** A plain text message. Each period is a block of `Label: value` lines, followed by the three advice lines. The last lines name who wrote the advice and credit the data sources. A table reads well as `Label: value` lines, so HTML is not needed.
-4. **Expiry, wrong address, service unavailable.** SNS removes a subscription that is not confirmed within 48 hours, and the next request starts the process again. A wrong address never confirms, so nothing is delivered to it. If SNS returns an error, the page says the email was not sent. The page says "accepted" only after the publish call succeeded.
-5. **Permissions.** `sns:ListSubscriptionsByTopic`, `sns:Subscribe` and `sns:Publish`, each on the exact topic ARN (section 1.7).
-6. **Proof for two recipients.** The test `two recipients never receive each other's report` in `advisor-app/app.test.js` publishes a report for address A and one for address B, then applies the filter policy of each subscription to the attributes of each message. Each message matches only its own subscription, and the attributes do not contain the address. The filtering itself is done by AWS, so the check is repeated with two real inboxes (section 5.6).
-
-Known limits: SNS adds its own footer to the message and the sender is an AWS address. Anyone can cause one confirmation message to be sent to an address, and the limit of 5 email requests per visitor per hour keeps this small.
+1. **Consent:** SNS sends a confirmation message to the address, and the subscription stays pending until the link is chosen. While it is pending, the page says "Waiting for confirmation" and explains what to do. Pressing the button again asks SNS to send the confirmation again.
+2. **Only to the person who asked:** Every address has its own subscription with the filter policy. A report is published with the message attribute `recipient` set to the hash of the address that asked, so only the matching subscription receives it. A hash is used so that the address is not placed in a message attribute.
+3. **Content:** A plain text message. Each period is a block of `Label: value` lines, followed by the three advice lines. The last lines name who wrote the advice and credit the data sources.
+4. **Expiry, wrong address, service unavailable:** SNS removes a subscription that is not confirmed within 48 hours, and the next request starts the process again. A wrong address never confirms, so nothing is delivered to it. If SNS returns an error, the page says the email was not sent. The page says "accepted" only after the publish call succeeded.
+5. **Permissions:** `sns:ListSubscriptionsByTopic`, `sns:Subscribe` and `sns:Publish`, each on the exact topic ARN (section 1.7).
+6. **Proof for two recipients:** The test `two recipients never receive each other's report` in `advisor-app/app.test.js` publishes a report for address A and one for address B, then applies the filter policy of each subscription to the attributes of each message. Each message matches only its own subscription, and the attributes do not contain the address. The filtering itself is done by AWS, so the check is repeated with two real inboxes.
 
 ### 1.9 Failure behavior (Section 9)
 
@@ -125,22 +120,22 @@ Known limits: SNS adds its own footer to the message and the sender is an AWS ad
 
 | # | Decision | Options considered | Chosen | Why |
 |---|---|---|---|---|
-| 1 | Number of tiers and what each owns | One tier. Two tiers. Three tiers | Two tiers: advisor and weather | They exist in lab06 and have separate jobs, separate roles and separate scaling. A third tier was not needed |
-| 1a | Application language | Extend the lab06 Node.js apps. Write the application in Python | Extend the lab06 Node.js apps | The zip lookup, the NWS calls, the database helper, the Gemini call and the fallback of lab06 were kept and extended, so the tested lab06 code was reused. The cost is a second test runner: the application logic is tested with `node --test` and the infrastructure with pytest |
-| 2 | Which API supplies each output, and gaps | NWS only. NWS and Open-Meteo. Another provider | NWS raw grid first, Open-Meteo for UV and for gaps | The NWS grid has no UV layer, and some of its layers stop before day 7 (section 2). Open-Meteo is free, needs no key and covers every field for 7 days in one request |
-| 3 | Zip code to coordinates, unknown zip codes | A zip table in the code. A geocoding service. zippopotam.us | zippopotam.us, as in lab06, then NWS `/points` for the time zone and the grid | Free, no key, and it answers 404 for a zip code that does not exist, which gives the "not found" case |
-| 4 | Morning and Night, time zones, daylight saving | Server time. UTC. Local time of the zip code | Morning 06:00 to 11:59 and Night 18:00 to 23:59, local time of the zip code | The time zone name comes from NWS `/points`. Every forecast hour is converted with `Intl.DateTimeFormat`, so daylight saving is handled by the time zone data. Tests cover both changes of 2026 |
-| 5 | Aggregation of each item | Average. Middle value. Extremes | Temperature low to high. Wind highest sustained and highest gust. Visibility lowest. UV peak. Humidity average. Rain highest chance and highest hourly rate. Snow highest chance and total | The extremes matter for clothing and for road safety (section 3.2) |
-| 6 | Heavy, Mild and No | Chance only. Amount only. Both | Both, with published thresholds | The rain intensity definitions of the American Meteorological Society glossary and the heavy snow definition of the National Weather Service glossary (section 3.3) |
-| 7 | What is cached | Nothing. Memory of the instance. Database | Database tables with time limits (section 1.6) | The state is outside the instances, so a replaced instance loses nothing |
-| 8 | How Gemini is called and checked | Free text. JSON | JSON with a response schema, model name from `.env`, 15 second limit, at most 1000 output tokens. The answer is checked for exact keys, text type, length, and no digits, markup or links | The model cannot change a number, because no number is accepted from it |
-| 9 | Fallback advice | None. One fixed sentence. Rules | Rules by temperature band, rain, snow, visibility, wind and UV (section 3.4) | The report is useful without the model, and it is labeled |
-| 10 | SNS or SES, consent and privacy | SNS. SES | SNS with one filtered subscription per address | Plain text is enough, setup is small, and SNS already makes the recipient confirm. SES would give HTML, but in the sandbox the sender and every recipient must be verified, which does not fit a public page. What is lost: formatting, and the AWS footer cannot be removed |
-| 11 | Per-tier IAM permissions | One shared role. One role per tier | One role per tier, exact ARNs | Section 1.7 |
-| 12 | Abuse controls and their limits | None. Counters | 20 requests per visitor per minute, 5 email requests per visitor per hour, Gemini caps, saved reports, cached facts, 4 KB request limit | Section 1.11 |
-| 13 | Daily cap and budget | Read then write. One atomic statement | One SQL statement: `INSERT ... ON CONFLICT ... DO UPDATE SET n = n + 1 WHERE n < limit RETURNING n` | Two requests arriving together cannot both take the last place. `budget.py` reports the hours, the Gemini calls and the cost |
+| 1 | Number of tiers and what each owns | One tier. Two tiers. Three tiers | Two tiers: advisor and weather | They exist in lab06 and have separate jobs, separate roles and separate scaling. A third tier is not needed |
+| 1a | Application language | Extend the lab06 Node.js apps. Write the application in Python | Extend the lab06 Node.js apps | The zip lookup, the NWS calls, the database helper, the Gemini call and the fallback of lab06 were kept and extended, so the tested lab06 code was reused. |
+| 2 | Which API supplies each output, and gaps | NWS only. NWS and Open-Meteo | NWS raw grid first, Open-Meteo for UV and for gaps | The NWS grid has no UV layer, and some of its layers stop before day 7. Open-Meteo is free, needs no key |
+| 3 | Zip code to coordinates, unknown zip codes | A zip table in the code. A geocoding service. zippopotam.us | zippopotam.us, as in lab06, then NWS `/points` for the time zone and the grid | Free, no key, and it answers 404 for a zip code that does not exist |
+| 4 | Morning and Night, time zones, daylight saving | Server time. UTC. Local time of the zip code | Morning 06:00 to 11:59 and Night 18:00 to 23:59, local time of the zip code | Every forecast hour is converted with `Intl.DateTimeFormat`, so daylight saving is handled by the time zone data. |
+| 5 | Aggregation of each item | Average. Middle value. Extremes | Temperature low to high. Wind highest sustained and highest gust. Visibility lowest. UV peak. Humidity average. Rain highest chance and highest hourly rate. Snow highest chance and total | The extremes matter for clothing and for road safety |
+| 6 | Thresholds	for	Heavy,	Mild	and	No,	and	their	source | Chance only. Amount only. Both | Both, with published thresholds | The rain intensity definitions of the American Meteorological Society glossary and the heavy snow definition of the National Weather Service glossary |
+| 7 | What is cached | Nothing. Memory of the instance. Database | Database tables with time limits | The state is outside the instances, so a replaced instance loses nothing |
+| 8 | How Gemini is called and checked | Free text. JSON | JSON with a response schema, model name from `.env`. The answer is checked for exact keys, text type, length, and no digits, markup or links | The model cannot change a number, because no number is accepted from it |
+| 9 | Fallback advice | None. One fixed sentence. Rules | Rules by temperature, rain, snow, visibility, wind and UV | The report is useful without the model, and it is labeled |
+| 10 | SNS or SES, consent and privacy | SNS. SES | SNS with one filtered subscription per address | Plain text is enough, setup is small, and SNS already makes the recipient confirm. |
+| 11 | Per-tier IAM permissions | One shared role. One role per tier | One role per tier, exact ARNs | A shared role would give both tiers both secrets. Exact ARNs because one wildcard on `ssm:GetParameter` hands over every parameter in the account |
+| 12 | Abuse controls and their limits | None. Counters | 20 requests per visitor per minute, 5 email requests per visitor per hour, Gemini caps, saved reports, cached facts, 4 KB request limit | A public page that calls a free-tier API and can send mail will be abused. The limit is per network address, so people behind one address share it  |
+| 13 | Daily cap and budget | Read then write. One atomic statement | One SQL statement | Two requests arriving together cannot both take the last place. `budget.py` reports the hours, the Gemini calls and the cost |
 | 14 | Gender in the interface, the prompt and the logs | Free text. Fixed list | A fixed list of three choices (female, male, neutral or prefer not to say). The form says it is used only for the clothing suggestion | Gemini receives only `womenswear`, `menswear` or `neutral`. The choice is not stored with the email address and is not logged |
-| 15 | Database | DynamoDB, as the brief assumes. RDS PostgreSQL, as built in lab06 | RDS PostgreSQL | The lab06 of this course was built on RDS, and the project builds on lab06. Two things follow: the daily cap uses an atomic SQL statement in place of a DynamoDB atomic write, and rows are removed by a `DELETE` on each write in place of the DynamoDB time to live |
+| 15 | Database | DynamoDB, RDS PostgreSQL | RDS PostgreSQL | The lab06 of this course was built on RDS, and the project builds on lab06. |
 
 ### 1.11 Threat table
 
