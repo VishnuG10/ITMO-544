@@ -141,19 +141,17 @@ Amazon SNS was chosen (decision 10). The six questions of the brief are answered
 
 | Threat | Control | What remains |
 |---|---|---|
-| Script injection through a form field | Strict validation of every field. Everything shown on the page goes through `escapeHtml`. A test posts `<script>` and checks it is not shown back | None known |
-| Script injection through an API response or Gemini | Weather values are turned into numbers and formatted by code. The Gemini answer is rejected if it has markup, links or digits, and it is escaped as well | None known |
-| SQL injection | Every query uses placeholders (`$1`, `$2`). The zip code is five digits before it reaches a query | None known |
+| Script injection through a form field | Strict validation of every field. Everything shown on the page goes through `escapeHtml`. A test posts `<script>` and checks it is not shown back | None |
+| Script injection through an API response or Gemini | Weather values are turned into numbers and formatted by code. The Gemini answer is rejected if it has markup, links or digits, and it is escaped as well | None |
+| SQL injection | Every query uses placeholders. The zip code is five digits before it reaches a query | None |
 | Prompt injection | Only fixed, checked values reach the model: the facts and a clothing category. No text typed by the visitor is sent | The model could still write odd advice. The check limits its shape and length |
 | Gemini key leaked | Stored only in SSM. Readable only by the advisor role. Sent in a request header, never in a URL, a log or user-data. A test checks that it is not in user-data | The key is in memory on the advisor instance |
 | One visitor uses up the Gemini free tier | Per-visitor rate limit, per-minute and daily caps, saved reports. Fallback when a cap is reached | People behind one network address share one visitor limit |
 | The page is used to send mail to strangers | Email only after the recipient confirmed. 5 email requests per visitor per hour | A stranger can receive one confirmation message |
 | One person receives another's report | One filtered subscription per address | The filtering is done by AWS and was checked with two real inboxes |
-| Direct access to the instances | The app security group accepts port 3000 only from the ALB security group | None known |
+| Direct access to the instances | The app security group accepts port 3000 only from the ALB security group | None |
 | Database exposure | Not public. Port 5432 only from the app security group. Encrypted storage. TLS with certificate checking | Both tiers log in with the same database user |
-| Forged client address to avoid the limits | Only the last entry of `X-Forwarded-For`, which the ALB adds, is used | None known |
 | Personal data kept too long | The email address and the gender choice are not in the database or the logs. Every row expires | SNS holds the subscription until the topic is deleted with the stack |
-| Plain HTTP | The lab uses HTTP on the ALB | Before real use, HTTPS with a certificate (section 8) |
 
 ---
 
