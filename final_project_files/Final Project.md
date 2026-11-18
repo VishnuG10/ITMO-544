@@ -22,8 +22,7 @@ The two Node.js apps of lab06 were extended. All deployment code is Python, as i
 | Component | Responsibility | Must not do | How the design keeps the rule |
 |---|---|---|---|
 | ALB | Public entry point with two listeners (8081 advisor, 8080 weather), health checks, forwards to the two	tiers | Expose the app instances directly | The app security group accepts port 3000 only from the ALB security group. An integration test connects to the instance addresses directly and expects no answer |
-| Advisor tier |  Serve	the	form,	validate	input,	ask	the	data tier	for	facts,	ask
-Gemini	for	advice,	render	the	report,	handle	the	email	request | Talk to the weather APIs, hold weather credentials | `advisor-app/app.js` has no weather API address. Its only source of facts is `WEATHER_URL` |
+| Advisor tier | Serve the form, validate input, ask the data tier	for	facts, ask Gemini for advice, render the report, handle	the	email request | Talk to the weather APIs, hold weather credentials | `advisor-app/app.js` has no weather API address. Its only source of facts is `WEATHER_URL` |
 | Weather tier | Turn a ZIP	and	a date into	normalized facts for Morning and Night,	from the sources you choose, with caching | Call Gemini, send email, know the gender or the email address | `weather-app/app.js` takes only `zip` and `date`. Its role has one permission (read the database password) |
 | RDS PostgreSQL | Table `facts` (cache of facts by zip and day), table `reports` (saved reports), table `counters` (rate limits, caps, usage counts) | Keep personal data longer than needed | No email address is ever written. Every row is removed after its time limit (section 1.6) |
 | SSM Parameter Store | Holds the Gemini key and the database password as SecureString values | Be readable by a role that does not need it | The Gemini key is readable only by the advisor role, by exact ARN |
