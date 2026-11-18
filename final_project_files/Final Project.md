@@ -9,11 +9,11 @@ The sections follow the order of the deliverables in Section 13 of the project b
 
 ### 1.1 Overview
 
-The Weather Advisor is the lab06 application, extended. A visitor enters a date, a US zip code, a gender choice and an email address. The application returns a report with a Morning column and a Night column. Each column has seven facts (temperature, wind speed, visibility, UV, humidity, rain and snow) and three pieces of advice (road conditions, dressing and accessories), which are the ten items of the brief. A button on the report page sends the report to the email address through Amazon SNS.
+The Weather Advisor is the extended lab06 application. A visitor enters a date, a US zip code, a gender choice and an email address. The application returns a report with a Morning column and a Night column. Each column has seven facts (temperature, wind speed, visibility, UV, humidity, rain and snow) and three pieces of advice (road conditions, dressing and accessories), which are the ten items of the brief. A button on the report page sends the report to the email address through Amazon SNS.
 
 The facts come only from weather services. The Rain and Snow categories come only from code. The advice comes from Google Gemini, or from rules in the code when Gemini cannot be used.
 
-The two Node.js (Express) apps of lab06 were extended in place: `weather-app/app.js` and `advisor-app/app.js`. All deployment code is Python, as in lab06: the `stack/` package, the boot script that starts the app on each instance, the create and delete scripts, `budget.py` and the infrastructure tests. There is no bash in the project. The lab06 boot script was bash, and it was replaced by a Python boot script.
+The two Node.js apps of lab06 were extended. All deployment code is Python, as in lab06: the `stack/` package, the boot script that starts the app on each instance, the create and delete scripts, `budget.py` and the infrastructure tests.
 
 ![Architecture](./images/architecture.png)
 
@@ -21,9 +21,10 @@ The two Node.js (Express) apps of lab06 were extended in place: `weather-app/app
 
 | Component | Responsibility | Must not do | How the design keeps the rule |
 |---|---|---|---|
-| ALB | Public entry point with two listeners (8081 advisor, 8080 weather), health checks on `/` | Expose the app instances directly | The app security group accepts port 3000 only from the ALB security group. An integration test connects to the instance addresses directly and expects no answer |
-| Advisor tier | Form, validation, report page, asking the weather tier for facts, asking Gemini for advice, checking the answer, the email action | Talk to the weather APIs, hold weather credentials | `advisor-app/app.js` has no weather API address. Its only source of facts is `WEATHER_URL` |
-| Weather tier | Turn a zip code and a date into facts for Morning and Night, from the sources, with caching | Call Gemini, send email, know the gender or the email address | `weather-app/app.js` takes only `zip` and `date`. Its role has one permission (read the database password) |
+| ALB | Public entry point with two listeners (8081 advisor, 8080 weather), health checks, forwards to the two	tiers | Expose the app instances directly | The app security group accepts port 3000 only from the ALB security group. An integration test connects to the instance addresses directly and expects no answer |
+| Advisor tier |  Serve	the	form,	validate	input,	ask	the	data tier	for	facts,	ask
+Gemini	for	advice,	render	the	report,	handle	the	email	request | Talk to the weather APIs, hold weather credentials | `advisor-app/app.js` has no weather API address. Its only source of facts is `WEATHER_URL` |
+| Weather tier | Turn a ZIP	and	a date into	normalized facts for Morning and Night,	from the sources you choose, with caching | Call Gemini, send email, know the gender or the email address | `weather-app/app.js` takes only `zip` and `date`. Its role has one permission (read the database password) |
 | RDS PostgreSQL | Table `facts` (cache of facts by zip and day), table `reports` (saved reports), table `counters` (rate limits, caps, usage counts) | Keep personal data longer than needed | No email address is ever written. Every row is removed after its time limit (section 1.6) |
 | SSM Parameter Store | Holds the Gemini key and the database password as SecureString values | Be readable by a role that does not need it | The Gemini key is readable only by the advisor role, by exact ARN |
 | Gemini API | Writes the three advice items from the facts | Supply any measured number | The prompt has only facts and a clothing category. An answer that contains a digit is rejected |
