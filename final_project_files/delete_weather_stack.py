@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Tear the weather advisor stack down and save the usage counts for the cost report."""
 import argparse
 import logging
 
@@ -26,7 +25,7 @@ def main() -> None:
         pass
     delete_weather_stack(settings, WeatherClients.create(settings.region))
     usage.record("deleted", usage=counts)
-    print("Stack removed. Run python3 delete_database.py as well, then python3 budget.py")
+    print("Stack removed.")
 
 
 if __name__ == "__main__":

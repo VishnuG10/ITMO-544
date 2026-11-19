@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Build the weather advisor stack and note the time for the cost report."""
 import argparse
 import logging
 import sys
@@ -41,8 +40,6 @@ def main() -> None:
           "&date=YYYY-MM-DD")
     print(f"Advisor page:    http://{dns}:{settings.advisor.listener_port}/")
     print("Give the target groups 3 to 4 minutes to report healthy.")
-    print("Run python3 delete_weather_stack.py when the session ends.")
-
 
 if __name__ == "__main__":
     main()

@@ -180,9 +180,8 @@ The same table applies to Morning and Night, because both periods are taken from
 
 ### 2.3 Evidence from the real responses
 
-*(Paste the content of `source_map_evidence.md` here after running `python3 testing/investigate_sources.py`.)*
-
-📸 Screenshot: the output of `python3 testing/investigate_sources.py`.
+![Investigate](./images/investigate1.png)
+![Investigate](./images/investigate2.png)
 
 ### 2.4 Questions the investigation must answer (Section 5.2)
 
