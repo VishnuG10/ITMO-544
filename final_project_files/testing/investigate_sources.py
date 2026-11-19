@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-"""Record real responses from every data source for one zip code and write the source map evidence.
-
-Usage (run from the project folder):
-    python3 testing/investigate_sources.py
-    python3 testing/investigate_sources.py --zip 99501
-
-The responses are saved in weather-app/fixtures/real, where the contract tests read them.
-The table is written to source_map_evidence.md.
-"""
 import argparse
 import json
 import re
@@ -25,7 +15,6 @@ sys.path.insert(0, str(ROOT))
 from stack.config import load_dotenv
 
 REAL = ROOT / "weather-app" / "fixtures" / "real"
-EVIDENCE = ROOT / "source_map_evidence.md"
 PERIODS = {"Morning": range(6, 12), "Night": range(18, 24)}
 OUTPUTS = [
     ("Temperature", "temperature", "temperature_2m"),
@@ -203,15 +192,9 @@ def main() -> int:
                         meteo_hours(meteo, variable) if variable in meteo["hourly"] else {}, "1 h",
                         first_day))
 
-    print(f"== 5. Coverage for local dates {first_day} to {first_day + timedelta(days=6)} ==")
-    print("Hours covered out of 6 on days 1 to 7. A 0 is a gap.")
-    for r in rows:
-        print(f"{r[0]:<22}{r[1]:<11}{r[2]:<28}{r[3]:<18}e.g. {str(r[4]):<13}M {r[7]:<15}N {r[8]}")
-
     header = ["Output", "Source", "Field", "Unit", "Example value", "Last hour covered",
               "Resolution", "Morning hours, days 1 to 7", "Night hours, days 1 to 7"]
     lines = [
-        "# Source map evidence", "",
         f"Recorded {datetime.now(tz):%Y-%m-%d %H:%M} local time for zip {args.zip} "
         f"({place['place name']}, {place['state abbreviation']}), time zone {tz_name}, "
         f"NWS grid {props['gridId']} {props['gridX']},{props['gridY']}.", "",
@@ -221,17 +204,22 @@ def main() -> int:
     ]
     lines += ["| " + " | ".join(str(cell) for cell in r) + " |" for r in rows]
     lines += [
-        "", "## Other responses", "",
+        "", "**Other responses**", "",
         f"- Zip lookup fields: `{sorted(lookup)}`, place fields: `{sorted(place)}`.",
         f"- Unknown zip `00000`: HTTP status {status_of_unknown(REAL)}.",
         f"- NWS text forecast (`forecast`): last period ends {text_ends}. Fields of one period: `{text_fields}`.",
         f"- NWS hourly forecast (`forecastHourly`): last period ends {hourly_ends}. "
         f"Fields of one period: `{hourly_fields}`.",
         f"- NWS raw grid (`forecastGridData`) layers: `{layers}`.",
-        f"- Open-Meteo units: `{meteo['hourly_units']}`.", "",
+        f"- Open-Meteo units: `{meteo['hourly_units']}`.",
     ]
-    EVIDENCE.write_text("\n".join(lines))
-    print(f"Saved the responses in {REAL.relative_to(ROOT)} and wrote {EVIDENCE.name}")
+    print(f"== 5. Evidence for local dates {first_day} to {first_day + timedelta(days=6)} ==")
+    print("Copy everything between the two lines into section 2.3 of Final Project.md.")
+    print("-" * 100)
+    for line in lines:
+        print(line)
+    print("-" * 100)
+    print(f"Real responses saved in {REAL.relative_to(ROOT)}")
     return 0
 
 

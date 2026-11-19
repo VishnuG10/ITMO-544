@@ -159,7 +159,7 @@ Amazon SNS was chosen (decision 10). The six questions of the brief are answered
 
 ### 2.1 Method
 
-1. `python3 testing/investigate_sources.py` was run for zip code 60616. It calls every source the application uses, saves each raw response in `weather-app/fixtures/real/`, prints which hours of Morning and Night each field covers on each of the seven days, and writes the table to `source_map_evidence.md`. It also asks for the unknown zip code `00000`.
+1. `python3 testing/investigate_sources.py` was run for zip code 60616. It calls every source the application uses, saves each raw response in `weather-app/fixtures/real/`, prints which hours of Morning and Night each field covers on each of the seven days. It also asks for the unknown zip code `00000`.
 2. The field names, units and example values in the evidence table were read from the saved responses.
 3. The same saved responses are fed to the parsing code by the contract tests in `weather-app/app.test.js`, so the code is proved against what the services really send.
 

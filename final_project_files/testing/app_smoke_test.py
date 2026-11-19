@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-"""Call both tiers through the load balancer and check the answers."""
 import argparse
 import json
 import sys
