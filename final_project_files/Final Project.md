@@ -288,57 +288,25 @@ A period has six hours of forecast. One value or a short range is shown for each
 | Email tests | `advisor-app/app.test.js` | The steps of consent (none, pending, confirmed), only to the person who asked, the per-visitor limit, an honest failure message |
 | Cost report | `tests/unit/test_weather_budget.py` | Hours of the stack and of the database, and the counts |
 
-### 5.2 Contract tests with the real responses
+### 5.2 Integration tests against the deployed stack
 
-```
-python3 testing/investigate_sources.py
-(cd weather-app && npm test)
-```
-
-📸 Screenshot: the four tests whose names start with `contract:` passing (they are skipped until the responses are recorded).
-
-### 5.3 Deployment
-
-```
-python3 create_database.py
-python3 testing/store_gemini_key.py
-python3 create_weather_stack.py
-```
-
-📸 Screenshot: the output of `create_weather_stack.py`, sections 1 to 7 and the two addresses.
-
-📸 Screenshot: the advisor page with a report for a zip code.
-
-### 5.4 Integration tests against the deployed stack
-
-```
-python3 testing/app_smoke_test.py
-python3 -m pytest -m integration -v -s
-```
-
-📸 Screenshot: the smoke test with all checks passing, and the pytest summary.
+![Smoke test](./images/smoke_test.png)
+![Integration](./images/integration1.png)
+![Integration](./images/integration.2png)
 
 | Measure | Target | Measured |
 |---|---|---|
-| New report (nothing cached) | under 20 seconds | *(from the line `new report took ... s`)* |
-| Report from cache | under 3 seconds | *(from the line `cached report took ... s`)* |
+| New report (nothing cached) | under 20 seconds | 9.4 s with a Gemini call, 1.3 s when the rule-based fallback was used |
+| Report from cache | under 3 seconds | 0.21 s |
 
-### 5.5 Chaos tests
+### 5.3 Chaos tests
 
 ```
 python3 -m pytest -m chaos -v -s
 ```
+![Chaos test](./images/chaos_test.png)
 
-📸 Screenshot: the output of the chaos tests.
-
-| Test | What it does | Result |
-|---|---|---|
-| `test_going_over_the_gemini_cap_gives_labeled_fallback_advice` | Sends 16 different requests at the same moment, with a cap of 10 Gemini calls per minute | *(write the printed line: how many from Gemini, how many labeled fallback)* |
-| `test_weather_tier_down_gives_a_degraded_report_and_then_recovers` | Terminates the weather instance. While it is down, a new report gets the clear "weather data is unavailable" answer within seconds, a saved report is still served, and the advisor page stays up. The Auto Scaling Group then replaces the instance | Recovered after *(seconds)*. The target is 300 seconds, as in lab06 |
-
-One weather source failing alone cannot be caused on a running instance without changing the instance, so that case is shown by the application tests of section 1.9. The second chaos test shows the same behavior for the whole weather tier.
-
-### 5.6 Email with two real inboxes
+### 5.4 Email with two real inboxes
 
 1. On the report page, address A was entered and the email button was pressed. The page said "Waiting for confirmation".
 2. The message from Amazon SNS in inbox A was opened and Confirm subscription was chosen.
