@@ -306,7 +306,7 @@ python3 -m pytest -m chaos -v -s
 ```
 ![Chaos test](./images/chaos_test.png)
 
-### 5.4 Email with two real inboxes
+### 5.4 Email inboxes
 
 1. On the report page, address A was entered and the email button was pressed. The page said "Waiting for confirmation".
 2. The message from Amazon SNS in inbox A was opened and Confirm subscription was chosen.
@@ -314,64 +314,18 @@ python3 -m pytest -m chaos -v -s
 4. The same was done with address B and a different zip code.
 5. Inbox A had only its own report, and inbox B had only its own report.
 
-📸 Screenshot: the page saying "Waiting for confirmation", the page saying the report was accepted, and each inbox with its report.
+![Waiting message](./images/waiting.png)
+![Accepted message](./images/accepted.png)
+![Inbox](./images/email_report1.png)
+![Inbox](./images/email_report2.png)
 
 ---
 
 ## 6. Cost report
 
-`create_database.py`, `create_weather_stack.py`, `delete_weather_stack.py` and `delete_database.py` each write a line with the time to `usage_log.jsonl`. Before it deletes the stack, `delete_weather_stack.py` also reads the advisor's counts of the day (Gemini calls, Gemini failures, emails accepted) and saves them. `budget.py` adds the hours and multiplies them by the hourly prices of the resources that are not free.
-
-```
-python3 budget.py
-```
-
-📸 Screenshot: the output of `python3 budget.py` after the last delete.
+![Budget](./images/budget.png)
 
 *(Write one sentence: the total hours, the total cost, and that it is under the $2.00 budget.)*
-
----
-
-## 7. Live demonstration
-
-The order follows the brief: build from nothing, produce a report, send the email, break something on purpose, delete everything.
-
-**Before the session**
-
-1. `python3 -m pytest -q`, `(cd weather-app && npm test)` and `(cd advisor-app && npm test)` all pass.
-2. The database is created 10 minutes before, because it takes 5 to 10 minutes: `python3 create_database.py`.
-3. The Gemini key is stored: `python3 testing/store_gemini_key.py`.
-4. Two email inboxes are open (address A and address B).
-
-**Step 1. Build the stack from nothing.** `python3 create_weather_stack.py`. While it runs: the seven sections, the topic, the two roles with exact resources, the ALB before the launch templates. Then `python3 testing/app_smoke_test.py`.
-
-**Step 2. Produce a report.** Open the advisor address. Enter zip code 60616, tomorrow's date, a gender choice and address A. Point out the two columns, the seven facts with the source of each, the three advice items, who wrote the advice, the credits, and the note about what is sent to Google. Then show a refusal: `M5V 3L9` gets the US-only message.
-
-**Step 3. Send the email.** Press "Email this report". The page says "Waiting for confirmation". Confirm in inbox A, press the button again, and show the report arriving. Repeat with address B and another zip code, and show that each inbox has only its own report.
-
-**Step 4. Break something on purpose.**
-
-1. The Gemini cap: `python3 -m pytest -m chaos -k gemini -s`. Some reports come back with advice labeled "Rule-based fallback".
-2. The weather tier: `python3 -m pytest -m chaos -k weather_tier -s`. The page stays up, a new report says weather data is unavailable, and the instance is replaced. The test prints the recovery time.
-
-**Step 5. Delete everything.**
-
-```
-python3 delete_weather_stack.py
-python3 delete_database.py
-python3 budget.py
-```
-
-Show in the console that the load balancer, the instances, the topic and the database are gone.
-
-**If something goes wrong**
-
-| What is seen | Likely cause | What to do |
-|---|---|---|
-| The smoke test fails right after the create script | The instances are still installing Node and the packages | Wait 3 minutes and run it again |
-| Every report says "Rule-based fallback (Gemini could not be used)" | Gemini is overloaded or the key is wrong | This is the designed fallback. Store the key again and wait 5 minutes for the key cache |
-| "Weather data is unavailable" for every zip code | The weather tier is not healthy yet | Check the target group in the console |
-| The page stays on "Waiting for confirmation" | The link in the SNS message was not chosen, or the message is in the spam folder | Check the spam folder, then press the button again |
 
 ---
 
