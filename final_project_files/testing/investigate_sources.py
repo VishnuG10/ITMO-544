@@ -96,9 +96,20 @@ def row(output, source, field, unit, hours, resolution, first_day) -> list:
     """One line of the evidence table."""
     if not hours:
         return [output, source, field, unit, "NOT RETURNED", "", "", "", ""]
-    first = min(hours)
-    return [output, source, field, unit, hours[first], f"{max(hours):%Y-%m-%d %H:%M}", resolution,
+    example = hours[min(hours)]
+    return [output, source, field, unit, round(example, 2) if isinstance(example, float) else example,
+            f"{max(hours):%Y-%m-%d %H:%M}", resolution,
             coverage(hours, first_day, "Morning"), coverage(hours, first_day, "Night")]
+
+
+COLUMNS = [("Output", 23), ("Source", 12), ("Field", 28), ("Unit", 17), ("Example", 14),
+           ("Last hour covered", 19), ("Step", 6), ("Morning 1 to 7", 16),
+           ("Night 1 to 7", 16)]
+
+
+def table_line(cells) -> str:
+    """One padded line of the printed table."""
+    return "".join(f"{str(cell):<{width}}" for cell, (_, width) in zip(cells, COLUMNS)).rstrip()
 
 
 def main() -> int:
@@ -192,40 +203,16 @@ def main() -> int:
                         meteo_hours(meteo, variable) if variable in meteo["hourly"] else {}, "1 h",
                         first_day))
 
-    header = ["Output", "Source", "Field", "Unit", "Example value", "Last hour covered",
-              "Resolution", "Morning hours, days 1 to 7", "Night hours, days 1 to 7"]
-    lines = [
-        f"Recorded {datetime.now(tz):%Y-%m-%d %H:%M} local time for zip {args.zip} "
-        f"({place['place name']}, {place['state abbreviation']}), time zone {tz_name}, "
-        f"NWS grid {props['gridId']} {props['gridX']},{props['gridY']}.", "",
-        "Each number under Morning and Night is how many of the 6 hours of that period the source "
-        "covers, for days 1 to 7. A 0 is a gap.", "",
-        "| " + " | ".join(header) + " |", "|" + "---|" * len(header),
-    ]
-    lines += ["| " + " | ".join(str(cell) for cell in r) + " |" for r in rows]
-    lines += [
-        "", "**Other responses**", "",
-        f"- Zip lookup fields: `{sorted(lookup)}`, place fields: `{sorted(place)}`.",
-        f"- Unknown zip `00000`: HTTP status {status_of_unknown(REAL)}.",
-        f"- NWS text forecast (`forecast`): last period ends {text_ends}. Fields of one period: `{text_fields}`.",
-        f"- NWS hourly forecast (`forecastHourly`): last period ends {hourly_ends}. "
-        f"Fields of one period: `{hourly_fields}`.",
-        f"- NWS raw grid (`forecastGridData`) layers: `{layers}`.",
-        f"- Open-Meteo units: `{meteo['hourly_units']}`.",
-    ]
-    print(f"== 5. Evidence for local dates {first_day} to {first_day + timedelta(days=6)} ==")
-    print("Copy everything between the two lines into section 2.3 of Final Project.md.")
-    print("-" * 100)
-    for line in lines:
-        print(line)
-    print("-" * 100)
+    print(f"== 5. Coverage for local dates {first_day} to {first_day + timedelta(days=6)} ==")
+    print("Each number under Morning and Night is the hours covered out of 6 on days 1 to 7. A 0 is a gap.")
+    print()
+    print(table_line(name for name, _ in COLUMNS))
+    print(table_line("-" * (width - 2) for _, width in COLUMNS))
+    for r in rows:
+        print(table_line(r))
+    print()
     print(f"Real responses saved in {REAL.relative_to(ROOT)}")
     return 0
-
-
-def status_of_unknown(folder: Path) -> int:
-    """The status that was recorded for the unknown zip code."""
-    return json.loads((folder / "zippopotam_00000.json").read_text())["status"]
 
 
 if __name__ == "__main__":
