@@ -594,7 +594,7 @@ function reportHtml(report, form, mail) {
     <table><tr><th></th><th>${escapeHtml(report.periods.morning.name)}<br><small>${escapeHtml(report.periods.morning.window)}</small></th>
     <th>${escapeHtml(report.periods.night.name)}<br><small>${escapeHtml(report.periods.night.window)}</small></th></tr>
     ${rows.join('\n')}</table>
-    <p>Suggestion source: Google Gemini</p>
+    <p><small>Suggestion source: ${escapeHtml(SOURCE_LABELS[report.source])}${report.note ? ` (${escapeHtml(report.note)})` : ''}.${savedNote}</small></p>
     <p>Measured values come from the weather services named in each cell. ${escapeHtml(report.credits.join('; '))}</p>
     <form method="POST" action="/email">${hidden}
     <button type="submit">Email this report to ${escapeHtml(form.email)}</button></form>
@@ -617,9 +617,9 @@ ${error ? `<p class="err" role="alert">Sorry: ${escapeHtml(error)}</p>` : ''}
   <label>Date <input type="date" name="date" value="${value('date')}" min="${addDays(today, -1)}" max="${addDays(today, 7)}" required></label>
   <label>US zip code <input name="zip" value="${value('zip')}" pattern="[0-9]{5}" maxlength="5" required></label>
   <label>Gender <select name="gender">${options}</select></label>
-    <small>Used only to tailor the clothing suggestion. It is not stored with your email address.</small>
+  <small>Used only to tailor the clothing suggestion. It is not stored with your email address.</small>
   <label>Email address <input type="email" name="email" value="${value('email')}" maxlength="254" required></label>
-
+  <p><small>Sent to Google Gemini: the weather facts and a clothing category. Not sent: your email address, zip code, city or anything you typed.</small></p>
   <button type="submit">What should I wear?</button>
 </form>
 ${report ? reportHtml(report, form, mail) : ''}

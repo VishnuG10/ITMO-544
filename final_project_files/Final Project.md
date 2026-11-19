@@ -272,7 +272,7 @@ A period has six hours of forecast. One value or a short range is shown for each
 
 ### 4.1 Tests that need no AWS account and no network
 
-The application is Node.js, so the application logic is tested with the Node.js test runner and the infrastructure with pytest (Section 11.2).
+The application is Node.js, so the application logic is tested with the Node.js test runner and the infrastructure with pytest.
 
 ```
 python3 -m pytest -v
