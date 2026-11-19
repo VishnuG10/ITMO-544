@@ -3,6 +3,7 @@
 import argparse
 import logging
 
+from stack import usage
 from stack.database import delete_database
 from stack.wclients import WeatherClients
 from stack.wconfig import WeatherSettings
@@ -18,6 +19,7 @@ def main() -> None:
     logging.getLogger("botocore").setLevel(logging.WARNING)
     settings = WeatherSettings.from_file(args.env)
     delete_database(settings, WeatherClients.create(settings.region))
+    usage.record("db_deleted")
 
 
 if __name__ == "__main__":

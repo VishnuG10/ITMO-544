@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Store the Gemini API key in SSM Parameter Store as a SecureString."""
 import getpass
 import sys
 from pathlib import Path

@@ -1,7 +1,8 @@
-"""Create and delete the weather advisor stack: roles, network, ALB, launch templates, ASGs."""
+"""Create and delete the weather advisor stack: topic, roles, network, ALB, launch templates, ASGs."""
 from __future__ import annotations
 
 import base64
+import gzip
 import json
 import logging
 import time
@@ -16,11 +17,12 @@ from .policies import trust_policy
 from .util import error_code, ignore_errors, retry_on
 from .wclients import WeatherClients, account_id
 from .wconfig import WeatherSettings
-from .wpolicies import parameter_arn, ssm_read_policy
+from .wpolicies import advisor_policy, parameter_arn, ssm_read_policy, topic_arn
 
 log = logging.getLogger("stack")
 
 RDS_CA_URL = "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem"
+USER_DATA_LIMIT = 16384
 
 
 @dataclass
@@ -59,24 +61,39 @@ class WeatherOutputs:
             (Path(directory) / name).unlink(missing_ok=True)
 
 
-def build_user_data(tier: Tier, region: str, extra_env: list[str],
-                    extra_setup: list[str] | None = None) -> str:
-    """The boot script: write the app files, install Node, run the app as a systemd service."""
-    app_js = base64.b64encode((tier.app_dir / "app.js").read_bytes()).decode()
-    package_json = base64.b64encode((tier.app_dir / "package.json").read_bytes()).decode()
+BOOT_SCRIPT = '''#!/usr/bin/python3
+"""Boot script: write the app files, install Node, run the app as a systemd service."""
+import os
+import subprocess
+import urllib.request
+
+FILES = {files!r}
+CA_URL = {ca_url!r}
+SERVICE = {service!r}
+
+
+def run(*command, cwd=None):
+    """Run one program and stop the boot if it fails. No shell is involved."""
+    subprocess.run(command, check=True, cwd=cwd)
+
+
+run("dnf", "install", "-y", "nodejs")
+os.makedirs("/opt/app", exist_ok=True)
+for path, text in FILES.items():
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(text)
+urllib.request.urlretrieve(CA_URL, "/opt/app/rds-ca.pem")
+run("npm", "install", "--omit=dev", cwd="/opt/app")
+run("chown", "-R", "ec2-user:ec2-user", "/opt/app")
+run("systemctl", "daemon-reload")
+run("systemctl", "enable", "--now", SERVICE)
+'''
+
+
+def service_unit(tier: Tier, region: str, extra_env: list[str]) -> str:
+    """The systemd unit that keeps the app running. Its settings are Environment lines."""
     env_block = "\n".join(extra_env)
-    setup_block = "\n".join(extra_setup or [])
-    return f"""#!/bin/bash
-dnf update -y
-dnf install -y nodejs
-mkdir -p /opt/app
-{setup_block}
-echo "{app_js}" | base64 -d > /opt/app/app.js
-echo "{package_json}" | base64 -d > /opt/app/package.json
-cd /opt/app
-npm install --omit=dev
-cat > /etc/systemd/system/{tier.name}.service << 'SERVICE'
-[Unit]
+    return f"""[Unit]
 Description={tier.name} app
 After=network.target
 [Service]
@@ -89,41 +106,82 @@ Restart=always
 User=ec2-user
 [Install]
 WantedBy=multi-user.target
-SERVICE
-chown -R ec2-user:ec2-user /opt/app
-systemctl daemon-reload
-systemctl enable {tier.name}.service
-systemctl start {tier.name}.service
 """
 
 
-def weather_user_data(settings: WeatherSettings, db_host: str) -> str:
-    """User-data for the weather tier. It gets the database address, never the password."""
-    env = [
-        f'Environment="NWS_USER_AGENT=(itmo-444-544 weather lab, {settings.contact_email})"',
+def build_user_data(tier: Tier, region: str, extra_env: list[str]) -> bytes:
+    """The Python boot script with the app files inside it, gzip compressed.
+
+    cloud-init unpacks gzip user-data by itself, which keeps the script under the 16 KB limit.
+    """
+    files = {
+        "/opt/app/app.js": (tier.app_dir / "app.js").read_text(encoding="utf-8"),
+        "/opt/app/package.json": (tier.app_dir / "package.json").read_text(encoding="utf-8"),
+        f"/etc/systemd/system/{tier.name}.service": service_unit(tier, region, extra_env),
+    }
+    script = BOOT_SCRIPT.format(files=files, ca_url=RDS_CA_URL, service=f"{tier.name}.service")
+    data = gzip.compress(script.encode("utf-8"), mtime=0)
+    if len(data) > USER_DATA_LIMIT:
+        raise network.StackError(
+            f"The {tier.name} boot script is {len(data)} bytes, over the {USER_DATA_LIMIT} byte limit.")
+    return data
+
+
+def database_env(settings: WeatherSettings, db_host: str) -> list[str]:
+    """The database address for a tier. It gets the name of the password parameter, never the password."""
+    return [
         f"Environment=DB_HOST={db_host}",
         f"Environment=DB_NAME={settings.db_name}",
         f"Environment=DB_USER={settings.db_user}",
         f"Environment=DB_PASSWORD_PARAM={settings.db_password_param}",
-        f"Environment=CACHE_SECONDS={settings.cache_seconds}",
     ]
-    setup = ["dnf install -y postgresql15", f"curl -sS -o /opt/app/rds-ca.pem {RDS_CA_URL}"]
-    return build_user_data(settings.weather, settings.region, env, setup)
 
 
-def advisor_user_data(settings: WeatherSettings, alb_dns: str) -> str:
+def weather_user_data(settings: WeatherSettings, db_host: str) -> bytes:
+    """User-data for the weather tier."""
+    env = [
+        f'Environment="NWS_USER_AGENT=(itmo-444-544 weather lab, {settings.contact_email})"',
+        *database_env(settings, db_host),
+        f"Environment=CACHE_SECONDS={settings.cache_seconds}",
+        f"Environment=STALE_SECONDS={settings.stale_seconds}",
+    ]
+    return build_user_data(settings.weather, settings.region, env)
+
+
+def advisor_user_data(settings: WeatherSettings, db_host: str, alb_dns: str, sns_arn: str) -> bytes:
     """User-data for the advisor tier. It needs the ALB address to reach the weather tier."""
     env = [
         f"Environment=WEATHER_URL=http://{alb_dns}:{settings.weather.listener_port}",
         f"Environment=GEMINI_KEY_PARAM={settings.gemini_param_name}",
         f"Environment=GEMINI_MODEL={settings.gemini_model}",
         f"Environment=KEY_CACHE_SECONDS={settings.key_cache_seconds}",
+        *database_env(settings, db_host),
+        f"Environment=SNS_TOPIC_ARN={sns_arn}",
+        f"Environment=GEMINI_DAILY_CAP={settings.gemini_daily_cap}",
+        f"Environment=GEMINI_PER_MINUTE={settings.gemini_per_minute}",
+        f"Environment=VISITOR_PER_MINUTE={settings.visitor_per_minute}",
+        f"Environment=EMAILS_PER_VISITOR_HOUR={settings.emails_per_visitor_hour}",
+        f"Environment=REPORT_SECONDS={settings.report_seconds}",
     ]
     return build_user_data(settings.advisor, settings.region, env)
 
 
+def ensure_topic(aws: WeatherClients, name: str) -> str:
+    """Create the report topic and return its ARN. Creating a topic that exists returns the same ARN."""
+    arn = aws.sns.create_topic(Name=name)["TopicArn"]
+    log.info("Report topic %s is ready.", name)
+    return arn
+
+
+def delete_topic(aws: WeatherClients, arn: str) -> None:
+    """Delete the topic and every subscription on it. A topic that is already gone is not an error."""
+    with ignore_errors("NotFound"):
+        aws.sns.delete_topic(TopicArn=arn)
+    log.info("Removed the report topic and its subscriptions.")
+
+
 def ensure_role_and_profile(aws: WeatherClients, tier: Tier, policy: dict) -> None:
-    """Create the role, its one-secret inline policy, and an instance profile holding the role."""
+    """Create the role, its inline policy, and an instance profile holding the role."""
     with ignore_errors("EntityAlreadyExists"):
         aws.iam.create_role(RoleName=tier.role_name,
                             AssumeRolePolicyDocument=json.dumps(trust_policy()))
@@ -158,7 +216,7 @@ def delete_role_and_profile(aws: WeatherClients, tier: Tier) -> None:
 
 
 def ensure_launch_template(aws: WeatherClients, settings: WeatherSettings, tier: Tier,
-                           user_data: str) -> int:
+                           user_data: bytes) -> int:
     """Create the launch template, or publish a new version if it already exists."""
     data = {
         "ImageId": settings.ami_id,
@@ -166,7 +224,7 @@ def ensure_launch_template(aws: WeatherClients, settings: WeatherSettings, tier:
         "KeyName": settings.key_name,
         "SecurityGroupIds": [settings.app_sg_id],
         "IamInstanceProfile": {"Name": tier.profile_name},
-        "UserData": base64.b64encode(user_data.encode()).decode(),
+        "UserData": base64.b64encode(user_data).decode(),
         "TagSpecifications": [{
             "ResourceType": "instance",
             "Tags": [{"Key": "Name", "Value": f"{tier.name}-app"}],
@@ -196,12 +254,13 @@ def create_weather_stack(settings: WeatherSettings, aws: WeatherClients, db_host
                 "Create it first (Part C of the lab).") from err
         raise
 
-    log.info("== 2. IAM roles and instance profiles, one secret each ==")
+    log.info("== 2. The report topic, then IAM roles with exact resources only ==")
     account = account_id(aws)
     db_arn = parameter_arn(settings.region, account, settings.db_password_param)
     gemini_arn = parameter_arn(settings.region, account, settings.gemini_param_name)
+    sns_arn = ensure_topic(aws, settings.sns_topic_name)
     ensure_role_and_profile(aws, settings.weather, ssm_read_policy(db_arn))
-    ensure_role_and_profile(aws, settings.advisor, ssm_read_policy(gemini_arn))
+    ensure_role_and_profile(aws, settings.advisor, advisor_policy(db_arn, gemini_arn, sns_arn))
     log.info("Waiting %ss for IAM propagation...", iam_wait)
     sleep(iam_wait)
 
@@ -221,9 +280,10 @@ def create_weather_stack(settings: WeatherSettings, aws: WeatherClients, db_host
     for tier in settings.tiers:
         balancer.ensure_listener(aws, alb_arn, tier.listener_port, tg_arns[tier.name])
 
-    log.info("== 6. Launch templates (the advisor needs the ALB address) ==")
+    log.info("== 6. Launch templates (the advisor needs the ALB address and the topic) ==")
     ensure_launch_template(aws, settings, settings.weather, weather_user_data(settings, db_host))
-    ensure_launch_template(aws, settings, settings.advisor, advisor_user_data(settings, alb_dns))
+    ensure_launch_template(aws, settings, settings.advisor,
+                           advisor_user_data(settings, db_host, alb_dns, sns_arn))
 
     log.info("== 7. Auto Scaling Groups (these launch the instances) ==")
     for tier in settings.tiers:
@@ -263,6 +323,9 @@ def delete_weather_stack(settings: WeatherSettings, aws: WeatherClients, sleep=t
     log.info("== Removing IAM instance profiles and roles ==")
     for tier in settings.tiers:
         delete_role_and_profile(aws, tier)
+
+    log.info("== Deleting the report topic ==")
+    delete_topic(aws, topic_arn(settings.region, account_id(aws), settings.sns_topic_name))
 
     WeatherOutputs.remove(directory)
     log.info("Weather stack removed.")

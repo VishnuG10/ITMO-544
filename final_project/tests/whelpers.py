@@ -1,6 +1,6 @@
 """Small helpers for the weather integration and chaos tests."""
-import subprocess
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -26,6 +26,11 @@ def get_json(url: str, timeout: float = 30):
         return resp.status_code, resp.json()
     except ValueError:
         return resp.status_code, None
+
+
+def day(offset: int = 1) -> str:
+    """A date inside the window: today in UTC plus the offset, as YYYY-MM-DD."""
+    return (datetime.now(timezone.utc) + timedelta(days=offset)).strftime("%Y-%m-%d")
 
 
 def wait_healthy(aws, outputs, tier_names=("weather", "advisor"), timeout: int = 420) -> bool:
@@ -55,11 +60,3 @@ def instance_ip(aws, name_tag: str):
             if instance.get("PublicIpAddress"):
                 return instance["PublicIpAddress"]
     return None
-
-
-def ssh(settings, ip: str, command: str) -> subprocess.CompletedProcess:
-    """Run one command on an instance over SSH using the lab's key pair."""
-    key = ROOT / f"{settings.key_name}.pem"
-    return subprocess.run(
-        ["ssh", "-i", str(key), "-o", "StrictHostKeyChecking=no", f"ec2-user@{ip}", command],
-        capture_output=True, text=True, timeout=60)

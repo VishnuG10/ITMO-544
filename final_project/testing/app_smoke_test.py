@@ -1,15 +1,16 @@
-#!/usr/bin/env python3
-"""Call both tiers through the load balancer and check the answers."""
 import argparse
 import json
 import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent.parent
 
-def load_dotenv(path="../.env"):
+
+def load_dotenv(path):
     """Read KEY=VALUE lines from a .env style file into a dict."""
     values = {}
     for line in Path(path).read_text().splitlines():
@@ -41,46 +42,55 @@ def main():
     parser.add_argument("--zip", default="60616", help="zip code for the happy-path checks")
     args = parser.parse_args()
 
-    env = load_dotenv()
-    alb = load_dotenv("../stack_outputs.env")["ALB_DNS_NAME"]
+    env = load_dotenv(ROOT / ".env")
+    alb = load_dotenv(ROOT / "stack_outputs.env")["ALB_DNS_NAME"]
     weather = f"http://{alb}:{env['WEATHER_LISTENER_PORT']}"
     advisor = f"http://{alb}:{env['ADVISOR_LISTENER_PORT']}"
+    day = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%d")
     results = []
 
     def check(name, ok, detail=""):
         results.append(ok)
         print(f"{'PASS' if ok else 'FAIL'}  {name}  {detail}")
 
-    status, body = get(f"{weather}/weather?zip={args.zip}")
-    check("weather tier returns a forecast", status == 200 and "forecast" in body, f"status {status}")
+    def has_all(parts, names):
+        return all(set(names) <= set(parts.get(period, {})) for period in ("morning", "night"))
 
-    status, body = get(f"{weather}/weather?zip={args.zip}")
+    facts = ["temperature", "wind", "visibility", "uv", "humidity", "rain", "snow"]
+    status, body = get(f"{weather}/weather?zip={args.zip}&date={day}")
+    ok = status == 200 and has_all({k: v["items"] for k, v in body["periods"].items()}, facts)
+    check("weather tier returns seven facts for Morning and Night", ok, f"status {status}")
+
+    status, body = get(f"{weather}/weather?zip={args.zip}&date={day}")
     check("a repeat call is answered from the database (cache hit)",
           status == 200 and body.get("cache") == "hit",
           f"cache={body.get('cache') if isinstance(body, dict) else body}")
 
-    status, body = get(f"{weather}/history")
-    check("history lists the saved lookups", status == 200 and body.get("count", 0) >= 1,
-          f"status {status}, count={body.get('count') if isinstance(body, dict) else '?'}")
-
-    status, body = get(f"{weather}/weather?zip=abc")
+    status, body = get(f"{weather}/weather?zip=abc&date={day}")
     check("weather tier rejects a bad zip with 400", status == 400, f"status {status}")
 
-    status, body = get(f"{weather}/weather?zip=00000")
+    status, body = get(f"{weather}/weather?zip=00000&date={day}")
     check("weather tier returns 404 for an unknown zip", status == 404, f"status {status}")
 
-    t0 = time.time()
-    status, body = get(f"{advisor}/advice?zip={args.zip}")
-    ok = status == 200 and bool(body.get("advice"))
-    check("advisor tier returns clothing advice", ok, f"status {status}, {time.time() - t0:.1f}s")
-    if ok:
-        print(f"      source={body.get('source')} model={body.get('model')}")
-        print(f"      advice: {body['advice']}")
-    check("advice came from Gemini (not the fallback)", body.get("source") == "gemini",
-          "fallback means the key, quota or model name needs a look")
+    status, body = get(f"{weather}/weather?zip={args.zip}&date=2020-01-01")
+    check("weather tier rejects a date outside the 7 day window with 400", status == 400,
+          f"status {status}")
 
-    status, body = get(f"{advisor}/advice?zip=abc")
-    check("advisor tier rejects a bad zip with 400", status == 400, f"status {status}")
+    t0 = time.time()
+    status, body = get(f"{advisor}/advice?zip={args.zip}&date={day}&gender=neutral", timeout=45)
+    ok = status == 200 and has_all(body["advice"], ["road_conditions", "dressing", "accessories"])
+    check("advisor tier returns three advice items for Morning and Night", ok,
+          f"status {status}, {time.time() - t0:.1f}s")
+    if ok:
+        print(f"      source={body.get('source')} model={body.get('model')} saved={body.get('saved')}")
+        print(f"      morning dressing: {body['advice']['morning']['dressing']}")
+    check("advice came from Gemini (not the fallback)",
+          isinstance(body, dict) and body.get("source") == "gemini",
+          "fallback means the key, quota, cap or model name needs a look")
+
+    status, body = get(f"{advisor}/advice?zip=M5V%203L9&date={day}")
+    check("advisor tier refuses a Canadian postal code with the US-only message",
+          status == 400 and "US locations only" in str(body), f"status {status}")
 
     status, body = get(f"{advisor}/")
     check("advisor home page loads", status == 200 and "<form" in str(body), f"status {status}")

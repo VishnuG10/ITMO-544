@@ -16,6 +16,7 @@ class WeatherClients:
     ssm: object
     rds: object
     sts: object
+    sns: object
 
     @classmethod
     def create(cls, region: str) -> "WeatherClients":
@@ -25,6 +26,7 @@ class WeatherClients:
             ec2=session.client("ec2"), iam=session.client("iam"),
             elbv2=session.client("elbv2"), autoscaling=session.client("autoscaling"),
             ssm=session.client("ssm"), rds=session.client("rds"), sts=session.client("sts"),
+            sns=session.client("sns"),
         )
 
 

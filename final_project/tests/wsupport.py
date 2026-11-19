@@ -19,6 +19,9 @@ WFAKE_VALUES = {
     "DB_PASSWORD_PARAM": "/t444/db-password", "CACHE_SECONDS": "600",
     "GEMINI_PARAM_NAME": "/t444/gemini-api-key", "GEMINI_MODEL": "gemini-test-model",
     "KEY_CACHE_SECONDS": "60", "CONTACT_EMAIL": "student@example.com",
+    "SNS_TOPIC_NAME": "t-weather-reports", "STALE_SECONDS": "21600", "REPORT_SECONDS": "3600",
+    "GEMINI_DAILY_CAP": "200", "GEMINI_PER_MINUTE": "10", "VISITOR_PER_MINUTE": "20",
+    "EMAILS_PER_VISITOR_HOUR": "5",
 }
 
 
