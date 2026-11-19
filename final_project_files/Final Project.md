@@ -272,15 +272,11 @@ A period has six hours of forecast. One value or a short range is shown for each
 
 ### 4.1 Tests that need no AWS account and no network
 
-The application is Node.js, so the application logic is tested with the Node.js test runner and the infrastructure with pytest.
+![Pytest](./images/pytest1.png)
+![Pytest](./images/pytest2.png)
+![Pytest](./images/pytest3.png)
+![Pytest](./images/pytest4.png)
 
-```
-python3 -m pytest -v
-(cd weather-app && npm test)
-(cd advisor-app && npm test)
-```
-
-📸 Screenshot: the last lines of each of the three commands, with the number of tests passed.
 
 | Layer (Section 11.2) | Where | What is covered |
 |---|---|---|
