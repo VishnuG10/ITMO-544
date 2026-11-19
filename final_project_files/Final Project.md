@@ -195,15 +195,15 @@ The same table applies to Morning and Night, because both periods are taken from
 | Criterion | NWS (api.weather.gov) | Open-Meteo | zippopotam.us |
 |---|---|---|---|
 | Covers the field and the 7 day horizon | Temperature, wind, gusts, humidity and the chance of precipitation are returned for all seven days. There is no UV layer, and the visibility layer came back with no values, so two of the ten outputs cannot come from here | Every field the project needs is returned hourly for all seven days in one request, which is why it was chosen as the second source | Not a forecast. It returns one place for a zip code, and that answer does not change |
-| Free to use, key | Free, no key. A `User-Agent` header that identifies the application is required | Free for non-commercial use, no key | Free, no key |
+| Free to use, key | Free, no key. | Free for non-commercial use, no key | Free, no key |
 | Rate limits and fair use | Asks for reasonable use. Facts are cached for 30 minutes, and each visitor is limited to 20 requests per minute | A daily request limit applies to the free service. The same cache protects it | No published limit. It is called only when the facts for that zip code and date are not already saved, so a repeated question makes no call |
-| Terms of use and attribution | Public domain data of the US government. The report names the National Weather Service | CC BY 4.0, credit required. The report prints "Weather data by Open-Meteo.com (CC BY 4.0)" | The report prints "Zip code lookup by zippopotam.us" |
-| Reliability and how it fails | Can answer slowly or with an error. 6 second limit, one retry, then Open-Meteo or an older copy | Can answer slowly or with an error in the same way. The same 6 second limit and one retry, then the NWS values or an older copy | A failure gives "weather data is unavailable". A 404 gives "not found" |
-| Units and time zones | `wmoUnit:` units (degC, km_h-1, m, mm, percent) and UTC times with durations such as `PT6H`. The code converts every unit and stops on a unit it does not know | Metric units, and local times when the `timezone` parameter is given | Coordinates as text |
+| Terms of use and attribution | Public domain data of the US government. | The report prints "Weather data by Open-Meteo.com (CC BY 4.0)" | The report prints "Zip code lookup by zippopotam.us" |
+| Reliability and how it fails | Can answer slowly or with an error. 6 second limit, one retry, then Open-Meteo or an older copy | Can answer slowly or with an error in the same way. | A failure gives "weather data is unavailable". A 404 gives "not found" |
+| Units and time zones | Units (degC, km_h-1, m, mm, percent) and UTC times with durations such as `PT6H`. The code converts every unit and stops on a unit it does not know | Metric units, and local times when the `timezone` parameter is given | Coordinates as text |
 
 ### 2.6 Scope rules (Section 5.4)
 
-- **Coverage.** Five digit US zip codes only. Any other postal code is refused on the server, before any outside call, with a message that says the service covers US locations only and gives an example. A five digit code that does not exist gets its own "ZIP code not found" message.
+- **Coverage.** Five digit US zip codes only. Any other code is refused on the server, before any outside call, with a message that says the service covers US locations only and gives an example. A five digit code that does not exist gets its own "ZIP code not found" message.
 - **Time.** Morning, Night and the selected date are in the local time of the zip code's location.
 - **Freshness.** Cached facts are fresh for 30 minutes (section 1.6).
 
@@ -219,7 +219,6 @@ The same table applies to Morning and Night, because both periods are taken from
 | Night | 18:00 to 23:59 local time on the selected date. The period does not cross midnight |
 | Local time | The time zone of the zip code's location, from the NWS `/points` response. It is not the server time and not UTC |
 | Date range | Today through today plus 6 days, which is seven calendar days. "Today" is the calendar day at the zip code's location. The advisor first checks a window that is one day wider on each side, so that every US time zone is handled, and the weather tier then checks the exact window at the location |
-| Today, late in the evening | Today can be chosen late in the evening. A period that has ended shows every item as "not available" with the reason "this period has already passed". The other period is shown as usual |
 
 ### 3.2 Aggregation (Section 6.2)
 
@@ -228,14 +227,12 @@ A period has six hours of forecast. One value or a short range is shown for each
 | Item | What is shown | Unit | Why |
 |---|---|---|---|
 | Temperature | Lowest and highest of the six hours, for example "43 to 52 F" | degrees Fahrenheit | The range shows how much the temperature changes, which matters for layers. The "feels like" value is not used. The advice gets the wind speed together with the temperature |
-| Wind speed | Highest sustained wind and highest gust, for example "up to 13 mph, gusts to 25 mph" | miles per hour | The strongest wind matters for roads and for clothing |
+| Wind speed | Highest wind and highest gust | miles per hour | The strongest wind matters for roads and for clothing |
 | Visibility | Lowest of the six hours | miles | The worst moment decides road safety. Under 1 mile counts as poor visibility |
-| UV | Peak of the six hours, with its name on the WHO scale: Low under 3, Moderate 3 to 5.9, High 6 to 7.9, Very high 8 to 10.9, Extreme 11 and above | UV index | Sun protection depends on the peak. At night the index is 0, which is shown as "0.0 (Low)" and gives no sun advice |
-| Humidity | Average of the six hours | percent | One typical value is enough for the advice |
-| Rain | The highest chance of precipitation and the highest hourly amount. The category uses both | percent, inches per hour | Section 3.3 |
+| UV | Peak of the six hours (Low under 3, Moderate 3 to 5.9, High 6 to 7.9, Very high 8 to 10.9, Extreme 11 and above) | UV index | Sun protection depends on the peak. At night the index is 0, which is shown as "0.0 (Low)" and gives no sun advice |
+| Humidity | Average of the six hours | percent | One value is enough for the advice |
+| Rain | The highest chance of precipitation and the highest hourly amount. | percent, inches per hour | Rain is judged by its worst hour |
 | Snow | The highest chance of precipitation and the total snowfall of the period | percent, inches | Snow is judged by how much builds up |
-
-An amount that a source gives for several hours at once (for example 12 mm over 6 hours) is shared equally over those hours before the highest hourly amount and the total are calculated.
 
 ### 3.3 Heavy, Mild and No (Section 6.3)
 
@@ -247,20 +244,12 @@ An amount that a source gives for several hours at once (for example 12 mm over 
 
 **Where the thresholds come from.** Rain: the Glossary of Meteorology of the American Meteorological Society defines rain intensity per hour as light from a trace to 0.10 inch, moderate from 0.11 to 0.30 inch, and heavy over 0.30 inch. Light and moderate are both shown as Mild. Snow: the National Weather Service glossary defines heavy snow as snowfall of 4 inches or more in 12 hours or less. A period is 6 hours, which is half of that, so 2 inches or more in the period is Heavy. A trace of 0.1 inch is the smallest amount shown as Mild.
 
-- American Meteorological Society, Glossary of Meteorology, entry "rain": https://glossary.ametsoc.org/w/index.php?curid=4721
-- National Weather Service glossary, entry "Heavy Snow": https://forecast.weather.gov/glossary.php?word=heavy+snow
-
 **How the chance of precipitation is combined with the amount.**
 
 1. If the chance is known and is under 20 percent, the category is No.
 2. Otherwise, if an amount is known, the amount decides the category.
 3. If only the chance is known, 60 percent or more gives Mild and less gives No. It is never Heavy, because the strength is not known. For snow, Mild from the chance alone also needs a low temperature of 32 F or below.
 4. If neither is known, the item is "not available" with the reason.
-5. The forecast amount is liquid water, which includes melted snow. When the whole period stays at or below 32 F, the precipitation is counted as snow and Rain is No.
-
-The page shows the numbers behind a category, for example "Mild (chance 70%, 0.08 in per hour at most)".
-
-**Boundary tests.** Rain: chances 19 and 20, amounts 0.009, 0.01, 0.30 and 0.301, and chance-only values 59 and 60. Snow: totals 0.09, 0.1, 1.99 and 2.0, and temperatures 32 and 33 for chance-only snow. They are in `weather-app/app.test.js`.
 
 ### 3.4 The three advice items (Section 6.4)
 
@@ -272,34 +261,16 @@ The page shows the numbers behind a category, for example "Mild (chance 70%, 0.0
 
 **Gender handled responsibly.**
 
-- The form offers three choices: Female, Male, and Neutral or prefer not to say. It is a fixed list, never free text.
+- The form offers three choices: Female, Male, and Neutral or prefer not to say.
 - The form says the choice is used only to tailor the clothing suggestion.
 - Gemini receives a clothing category (`womenswear`, `menswear` or `neutral`), not an identity.
 - The choice is not stored with the email address, and neither is logged.
 
 ---
 
-## 4. Code
+## 4. Test evidence
 
-| Part | Files |
-|---|---|
-| The application | `weather-app/app.js`, `advisor-app/app.js`, each with its `package.json` |
-| The Python stack | `stack/wconfig.py`, `stack/wclients.py`, `stack/wpolicies.py`, `stack/wstack.py`, `stack/database.py`, `stack/usage.py`, and the shared `network.py`, `balancer.py`, `compute.py`, `scaling.py`, `policies.py`, `config.py`, `clients.py`, `util.py` |
-| The Python boot script | `BOOT_SCRIPT` and `build_user_data` in `stack/wstack.py` |
-| Scripts to create and delete everything | `create_database.py`, `create_weather_stack.py`, `delete_weather_stack.py`, `delete_database.py` |
-| Cost | `budget.py` |
-| Application logic tests (Node.js) | `weather-app/app.test.js`, `advisor-app/app.test.js` |
-| Infrastructure tests (pytest) | `tests/unit/test_weather_stack.py`, `tests/unit/test_weather_database.py`, `tests/unit/test_weather_budget.py` |
-| Integration and chaos tests (pytest) | `tests/integration/test_weather_app.py`, `tests/integration/test_weather_infra.py`, `tests/integration/test_weather_chaos.py` |
-| Helpers | `testing/app_smoke_test.py`, `testing/store_gemini_key.py`, `testing/investigate_sources.py` |
-
-Names, ports, limits and the Gemini model name come from `.env`.
-
----
-
-## 5. Test evidence
-
-### 5.1 Tests that need no AWS account and no network
+### 4.1 Tests that need no AWS account and no network
 
 The application is Node.js, so the application logic is tested with the Node.js test runner and the infrastructure with pytest (Section 11.2).
 

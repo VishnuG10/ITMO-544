@@ -617,7 +617,7 @@ ${error ? `<p class="err" role="alert">Sorry: ${escapeHtml(error)}</p>` : ''}
   <label>Date <input type="date" name="date" value="${value('date')}" min="${addDays(today, -1)}" max="${addDays(today, 7)}" required></label>
   <label>US zip code <input name="zip" value="${value('zip')}" pattern="[0-9]{5}" maxlength="5" required></label>
   <label>Gender <select name="gender">${options}</select></label>
-  
+    <small>Used only to tailor the clothing suggestion. It is not stored with your email address.</small>
   <label>Email address <input type="email" name="email" value="${value('email')}" maxlength="254" required></label>
 
   <button type="submit">What should I wear?</button>
