@@ -292,7 +292,7 @@ A period has six hours of forecast. One value or a short range is shown for each
 
 ![Smoke test](./images/smoke_test.png)
 ![Integration](./images/integration1.png)
-![Integration](./images/integration.2png)
+![Integration](./images/integration2.png)
 
 | Measure | Target | Measured |
 |---|---|---|
@@ -301,9 +301,6 @@ A period has six hours of forecast. One value or a short range is shown for each
 
 ### 5.3 Chaos tests
 
-```
-python3 -m pytest -m chaos -v -s
-```
 ![Chaos test](./images/chaos_test.png)
 
 ### 5.4 Email inboxes
@@ -325,11 +322,9 @@ python3 -m pytest -m chaos -v -s
 
 ![Budget](./images/budget.png)
 
-*(Write one sentence: the total hours, the total cost, and that it is under the $2.00 budget.)*
-
 ---
 
-## 8. Reflection
+## 7. Reflection
 
 ### What would change at ten times the traffic
 
