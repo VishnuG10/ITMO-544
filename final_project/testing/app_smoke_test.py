@@ -78,12 +78,14 @@ def main():
 
     t0 = time.time()
     status, body = get(f"{advisor}/advice?zip={args.zip}&date={day}&gender=neutral", timeout=45)
-    ok = status == 200 and has_all(body["advice"], ["road_conditions", "dressing", "accessories"])
-    check("advisor tier returns three advice items for Morning and Night", ok,
+    advice_items = ["road_conditions", "dressing", "accessories", "activities", "feels_like", "getting_around"]
+    ok = status == 200 and has_all(body["advice"], advice_items)
+    check("advisor tier returns six advice items for Morning and Night", ok,
           f"status {status}, {time.time() - t0:.1f}s")
     if ok:
         print(f"      source={body.get('source')} model={body.get('model')} saved={body.get('saved')}")
         print(f"      morning dressing: {body['advice']['morning']['dressing']}")
+        print(f"      morning activities: {body['advice']['morning']['activities']}")
     check("advice came from Gemini (not the fallback)",
           isinstance(body, dict) and body.get("source") == "gemini",
           "fallback means the key, quota, cap or model name needs a look")

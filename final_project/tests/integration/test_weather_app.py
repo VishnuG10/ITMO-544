@@ -1,4 +1,3 @@
-"""Do the two tiers behave correctly through the load balancer? Run: pytest -m integration -s"""
 import subprocess
 import sys
 import time
@@ -12,7 +11,7 @@ pytestmark = pytest.mark.integration
 
 CANDIDATE_ZIPS = ["30301", "80202", "97201", "02108", "73301"]
 FACTS = ["temperature", "wind", "visibility", "uv", "humidity", "rain", "snow"]
-ADVICE = ["road_conditions", "dressing", "accessories"]
+ADVICE = ["road_conditions", "dressing", "accessories", "activities", "feels_like", "getting_around"]
 NON_US = ["M5V 3L9", "SW1A 1AA", "6061", "606160", "abcde"]
 
 
@@ -95,7 +94,8 @@ def test_the_report_page_shows_the_table_and_the_email_button(healthy, advisor_u
         "zip": "60616", "date": day(2), "gender": "female", "email": "someone@example.com"})
     assert resp.status_code == 200
     for label in ("Temperature", "Wind speed", "Visibility", "UV", "Humidity", "Rain", "Snow",
-                  "Suggested road conditions", "Suggested dressing", "Suggested accessories to carry"):
+                  "Suggested road conditions", "Suggested dressing", "Suggested accessories to carry",
+                  "Suggested activities", "How it will feel", "Getting around"):
         assert f"<th>{label}</th>" in resp.text
     assert "Morning" in resp.text and "Night" in resp.text
     assert "Suggestion source:" in resp.text

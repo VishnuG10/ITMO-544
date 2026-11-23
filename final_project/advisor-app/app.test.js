@@ -7,7 +7,6 @@ const advisor = require('./app.js');
 const NOW = new Date('2026-11-16T15:00:00Z');
 const DAY = '2026-11-17';
 
-// ---- Builders --------------------------------------------------------------------------
 
 const item = (label, text, values, source = 'NWS') => ({ label, available: true, text, values, source });
 const gone = (label) => ({ label, available: false, text: 'not available', reason: 'no source returned this value', source: null });
@@ -37,11 +36,12 @@ const weatherBody = (overrides = {}) => ({
 });
 
 const GOOD_ADVICE = {
-  morning: { road_conditions: 'Roads may be wet, so leave extra room.', dressing: 'Wear a light jacket over long sleeves.', accessories: 'Bring an umbrella and sunglasses.' },
-  night: { road_conditions: 'Roads should be clear and dry tonight.', dressing: 'Wear a warm jacket and long pants.', accessories: 'No special accessories are needed.' },
+    morning: { road_conditions: 'Roads may be wet, so leave extra room.', dressing: 'Wear a light jacket over long sleeves.', accessories: 'Bring an umbrella and sunglasses.',
+    activities: 'A short walk is fine before the rain.', feels_like: 'The breeze makes it feel a little cooler.', getting_around: 'Walking is fine with an umbrella.' },
+  night: { road_conditions: 'Roads should be clear and dry tonight.', dressing: 'Wear a warm jacket and long pants.', accessories: 'No special accessories are needed.',
+    activities: 'A good evening for a calm walk.', feels_like: 'It should feel close to the temperature.', getting_around: 'Walking or driving are both easy tonight.' },
 };
 
-// An in-memory stand-in for the counters and reports tables, with the same rules as the SQL.
 function fakeDatabase(clock) {
   const counters = new Map();
   const reports = new Map();
@@ -238,11 +238,13 @@ test('the prompt holds the facts and a clothing category, and nothing personal',
 
 // ---- The rule-based fallback -----------------------------------------------------------
 
-test('the fallback gives all three items for both periods and every clothing category', () => {
+test('the fallback gives all six items for both periods and every clothing category', () => {
   for (const clothing of Object.values(advisor.GENDERS)) {
     const result = advisor.fallbackAdvice(weatherBody(), clothing);
     for (const key of ['morning', 'night']) {
-      for (const name of ['road_conditions', 'dressing', 'accessories']) assert.ok(result[key][name].length > 10);
+      for (const name of ['road_conditions', 'dressing', 'accessories', 'activities', 'feels_like', 'getting_around']) {
+        assert.ok(result[key][name].length > 10);
+      }
     }
   }
   const women = advisor.fallbackAdvice(weatherBody(), 'womenswear').morning.dressing;

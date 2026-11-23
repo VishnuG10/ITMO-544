@@ -131,9 +131,11 @@ async function getApiKey() {
 }
 
 const PERIOD_KEYS = ['morning', 'night'];
-const ADVICE_KEYS = ['road_conditions', 'dressing', 'accessories'];
+const ADVICE_KEYS = ['road_conditions', 'dressing', 'accessories',
+  'activities', 'feels_like', 'getting_around'];
 const SYSTEM_PROMPT =
-  'You give short, practical road condition, clothing and accessory suggestions for the weather you are given. '
+  'You give short, practical suggestions for the weather you are given: the road conditions, what to wear, '
+  + 'what to carry, what the period suits doing, how it will feel, and the best way to get around. '
   + 'Use only the data provided. Never state, repeat or change a number, and do not use digits. '
   + 'When a value says not available, do not guess it and do not base advice on it. '
   + 'Write one or two plain sentences for each item, with no markdown, no links and no lists. '
@@ -157,8 +159,8 @@ function buildPrompt(w, clothing) {
     lines.push(`${period.name} (${period.window}):`);
     for (const item of Object.values(period.items)) lines.push(`  ${item.label}: ${item.text}`);
   }
-  lines.push('Reply with JSON like {"morning": {"road_conditions": "...", "dressing": "...", "accessories": "..."}, '
-    + '"night": {"road_conditions": "...", "dressing": "...", "accessories": "..."}}.');
+  const keys = `{${ADVICE_KEYS.map((key) => `"${key}": "..."`).join(', ')}}`;
+  lines.push(`Reply with JSON like {${PERIOD_KEYS.map((period) => `"${period}": ${keys}`).join(', ')}}.`);
   return lines.join('\n');
 }
 
@@ -170,7 +172,7 @@ async function askGemini(prompt) {
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: 1000, responseMimeType: 'application/json', responseSchema: ADVICE_SCHEMA },
+      generationConfig: { maxOutputTokens: 2000, responseMimeType: 'application/json', responseSchema: ADVICE_SCHEMA },
     }),
     signal: AbortSignal.timeout(15000),
   });
@@ -304,11 +306,71 @@ function accessoriesText(period) {
   return items.length ? `Bring ${items.join(', ')}.` : 'No special accessories are needed.';
 }
 
+function activitiesText(period) {
+  const rain = factValue(period, 'rain', 'category');
+  const snow = factValue(period, 'snow', 'category');
+  const low = factValue(period, 'temperature', 'low');
+  const high = factValue(period, 'temperature', 'high');
+  const wind = factValue(period, 'wind', 'sustained');
+  const uv = factValue(period, 'uv', 'index');
+  if ([rain, snow, low, wind, uv].every((v) => v === null)) {
+    return 'Activities cannot be suggested because the weather data is not available.';
+  }
+  if (snow === 'Heavy' || rain === 'Heavy') return 'Plan indoor activities, and keep any time outside short.';
+  if (low !== null && low <= 20) return 'Keep outdoor time short, and save longer plans for a milder period.';
+  if (high !== null && high >= 90) return 'Avoid hard exercise outdoors, and keep to the shade if you do go out.';
+  if (rain === 'Mild' || snow === 'Mild') return 'Short outdoor trips are fine, but keep an indoor option ready.';
+  if (wind !== null && wind >= 25) return 'A walk is fine, but the wind makes cycling and open ground unpleasant.';
+  if (uv !== null && uv >= 6) return 'Good for being outside, though strong sun makes shade worth planning for.';
+  return 'A good period for a walk, a run or other plans outdoors.';
+}
+
+function feelsLikeText(period) {
+  const low = factValue(period, 'temperature', 'low');
+  const high = factValue(period, 'temperature', 'high');
+  const wind = factValue(period, 'wind', 'sustained');
+  const humidity = factValue(period, 'humidity', 'percent');
+  const rain = factValue(period, 'rain', 'category');
+  if (low === null) return 'How it will feel cannot be judged because the temperature is not available.';
+  if (wind !== null && wind >= 15 && low <= 50) return 'The wind will make it feel noticeably colder than the temperature suggests.';
+  if ((rain === 'Mild' || rain === 'Heavy') && low <= 55) return 'Being wet will make it feel colder than the temperature suggests.';
+  if (humidity !== null && humidity >= 70 && high !== null && high >= 75) {
+    return 'Humid air will make it feel warmer and closer than the temperature suggests.';
+  }
+  if (humidity !== null && humidity <= 30) return 'The air will be dry, so it may feel sharper than the temperature suggests.';
+  if (low <= 32) return 'It will feel cold, and bare skin will start to sting after a short while outside.';
+  return 'It should feel close to the temperature shown, with nothing to make it worse.';
+}
+
+function gettingAroundText(period) {
+  const rain = factValue(period, 'rain', 'category');
+  const snow = factValue(period, 'snow', 'category');
+  const miles = factValue(period, 'visibility', 'miles');
+  const wind = factValue(period, 'wind', 'sustained');
+  const low = factValue(period, 'temperature', 'low');
+  const high = factValue(period, 'temperature', 'high');
+  if ([rain, snow, miles, wind, low].every((v) => v === null)) {
+    return 'The best way to travel cannot be judged because the weather data is not available.';
+  }
+  if (snow === 'Heavy') return 'Travel only if you must, and prefer public transport to driving yourself.';
+  if (rain === 'Heavy' || (miles !== null && miles < 1)) return 'Driving beats walking here, and the journey will need extra time.';
+  if (snow === 'Mild') return 'Walking is fine with proper footwear, but allow longer for any journey.';
+  if (rain === 'Mild') return 'Short walks are fine with an umbrella, and cycling will be wet going.';
+  if (wind !== null && wind >= 25) return 'Walking is fine, but cycling will be hard work against this wind.';
+  if (high !== null && high >= 90) return 'Short walks are fine, but walking or cycling far will be tiring in this heat.';
+  if (low !== null && low <= 32) return 'Walking is pleasant enough if you wrap up, and paths may be icy in places.';
+  return 'Walking or cycling should both be pleasant, with nothing to slow a journey.';
+}
+
 function fallbackAdvice(w, clothing) {
   const advice = {};
   for (const key of PERIOD_KEYS) {
     const period = w.periods[key];
-    advice[key] = { road_conditions: roadText(period), dressing: dressingText(period, clothing), accessories: accessoriesText(period) };
+    advice[key] = {
+      road_conditions: roadText(period), dressing: dressingText(period, clothing),
+      accessories: accessoriesText(period), activities: activitiesText(period),
+      feels_like: feelsLikeText(period), getting_around: gettingAroundText(period),
+    };
   }
   return advice;
 }
@@ -545,7 +607,11 @@ async function getReport(zip, day, clothing) {
   return { status: 200, body: { ...body, saved: false, ageSeconds: 0 } };
 }
 
-const ADVICE_LABELS = { road_conditions: 'Suggested road conditions', dressing: 'Suggested dressing', accessories: 'Suggested accessories to carry' };
+const ADVICE_LABELS = {
+  road_conditions: 'Suggested road conditions', dressing: 'Suggested dressing',
+  accessories: 'Suggested accessories to carry', activities: 'Suggested activities',
+  feels_like: 'How it will feel', getting_around: 'Getting around',
+};
 const SOURCE_LABELS = { gemini: 'Google Gemini', fallback: 'Rule-based fallback' };
 
 // The report as plain text for the email. A table reads as one "Label: value" line per item.
